@@ -1,0 +1,53 @@
+---
+lang: es
+format:
+  html:
+    code-fold: true
+    code-summary: "Mostrar código"
+    toc: true
+    toc-depth: 5
+    toc-location: left
+    toc-title: "Contenido"
+    number-sections: true
+    theme:
+      light: journal
+      dark: darkly
+    highlight: tango
+    smooth-scroll: true
+    embed-resources: true
+    include-before-body:
+      text: |
+        <div style="text-align: center; padding: 60px 20px; font-family: 'Georgia', serif;">
+          <p style="font-size: 1.2em; font-weight: bold;">UNIVERSIDAD NACIONAL AGRARIA LA MOLINA</p>
+          <p style="font-weight: bold;">FACULTAD DE ECONOMÍA Y PLANIFICACIÓN</p>
+          <p style="font-weight: bold; margin-bottom: 30px;">DEPARTAMENTO ACADÉMICO DE ESTADÍSTICA E INFORMÁTICA</p>
+          <img src="logo.png" alt="Logo UNALM" style="max-width: 160px; margin: 15px 0;" />
+          <p style="font-weight: bold;">TÉCNICAS MULTIVARIADAS</p>
+          <p><strong>Docente:</strong> Miranda Villagomez, Clodomiro Fernando</p>
+          <p style="font-weight: bold;">Primera evaluación continua</p>
+          <p><strong>Grupo:</strong> 1</p>
+          <table style="margin: 20px auto; border-collapse: collapse; width: 55%;">
+            <tr><th>Integrantes</th><th>Código</th></tr>
+            <tr><td>Meza Asto, Angel D.</td><td>20220810</td></tr>
+            <tr><td>Ormeño Sakihama, Daniel Kenyi</td><td>20240723</td></tr>
+            <tr><td>Ancco Guzman, Melany Alexandra</td><td>20230379</td></tr>
+            <tr><td>Pedraza Laboriano, Jonnathan</td><td>20231505</td></tr>
+            <tr><td>Fuentes Bueno, Fiorella</td><td>20230395</td></tr>
+            <tr><td>Garay Ramos, Jose Luis</td><td>20230678</td></tr>
+            <tr><td>Sobero Aguirre, Fiorella Romina</td><td>20091130</td></tr>
+          </table>
+          <p>LA MOLINA - LIMA - PERÚ</p>
+          <p>2026 - I</p>
+        </div>
+        <hr/>
+---
+
+# Pregunta 1
+
+# Pregunta 2
+
+# Pregunta 3
+
+# Pregunta 4
+
+# Pregunta 5

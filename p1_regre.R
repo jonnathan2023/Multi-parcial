@@ -18,7 +18,7 @@ for (p in paquetes) {
 # ══════════════════════════════════════════════════════════════
 #   CARGA DE DATOS
 # ══════════════════════════════════════════════════════════════
-bd <- read.csv("cafe.csv")
+bd <- read.csv("p1_regre_cafe.csv")
 head(bd)
 dim(bd)   # 199 filas  x  8 columnas
 

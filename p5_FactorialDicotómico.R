@@ -1,18 +1,30 @@
-# ==================================================================#
-# CASO: ANÁLISIS FACTORIAL DICOTÓMICO (COMPORTAMIENTO E-COMMERCE)   #
-# ==================================================================#
+# Análisis Factorial Dicotómico - Caso E-Commerce
+# Integrante: Jose Luis Garay Ramos
 
-# ── 1. GENERACIÓN DE LA BASE DE DATOS (DATASET CORREGIDO) ─────────
-set.seed(2026) # Semilla para reproducibilidad (Ciclo 2026-I)
-n <- 400       # Aumentamos la muestra a 400 para asegurar variabilidad
+# Contexto de la base de datos:
+# Encuesta a 400 usuarios sobre hábitos y seguridad al comprar por internet.
+# Todas las respuestas son dicotómicas: 1 = Sí, 0 = No.
 
-# Simulamos 2 variables latentes (Seguridad y Uso) independientes
+# Dimensión 1: Seguridad y Prevención
+# P1: Verifica que la página tenga HTTPS 
+# P2: Evita guardar los datos de su tarjeta 
+# P3: Lee las políticas de devoluciones 
+# P4: Usa pasarelas intermediarias como PayPal 
+# P5: Evita comprar en redes Wi-Fi públicas 
+
+# Dimensión 2: Hábitos de Consumo Digital
+# P6: Compra por internet al menos una vez al mes 
+# P7: Prefiere usar las Apps de las tiendas 
+# P8: Está suscrito a newsletters para ofertas 
+# P9: Suele dejar reseñas de productos 
+# P10: Planifica sus compras para días de descuento 
+
+# 1. Generación de datos 
+set.seed(2026) 
+n <- 400       
 latente_seguridad <- rnorm(n)
 latente_uso <- rnorm(n)
 
-# Generamos 10 ítems dicotómicos.
-# Usamos cargas equilibradas (aprox 0.65) y error (aprox 0.75) 
-# El corte "> 0" asegura un ~50% de respuestas Sí/No, evitando varianzas cero.
 bd_ecommerce <- data.frame(
   P1 = as.numeric(0.65 * latente_seguridad + 0.75 * rnorm(n) > 0),
   P2 = as.numeric(0.70 * latente_seguridad + 0.71 * rnorm(n) > 0),
@@ -27,13 +39,12 @@ bd_ecommerce <- data.frame(
   P10= as.numeric(0.75 * latente_uso + 0.66 * rnorm(n) > 0)
 )
 
-# Guardar la base de datos en un archivo CSV para presentar en el trabajo
 write.csv(bd_ecommerce, "Datos_ECommerce.csv", row.names = FALSE)
 
 test <- bd_ecommerce
-head(test)
+test
 
-# ── 2. PAQUETES Y SUPUESTOS ───────────────────────────────────────
+# 2. Carga de paquetes y exploración inicial
 if (!require("psych")) install.packages("psych")
 if (!require("performance")) install.packages("performance")
 if (!require("tidyverse")) install.packages("tidyverse")
@@ -42,37 +53,47 @@ library(psych)
 library(performance)
 library(tidyverse)
 
-# Matriz de Correlaciones Tetracóricas
+str(test)
+summary(test)
+
+# 3. Supuestos del Análisis Factorial Dicotómico
+# Matriz de correlaciones tetracóricas
 r.tetra = tetrachoric(test)
-R = r.tetra$rho    # Extrayendo la matriz
+R = r.tetra$rho    
 print(round(R, 2))
 
-# Esfericidad de Bartlett
-# H0: La matriz de correlaciones es una matriz identidad
-cortest.bartlett(R, n = nrow(test)) 
+# Prueba de esfericidad de Bartlett
+cortest.bartlett(R, n) 
 
-# KMO (Kaiser-Meyer-Olkin)
-# Evalúa la adecuación muestral (>0.7 es aceptable)
+# Índice KMO
 KMO(R)
-check_factorstructure(R, n = nrow(test))
+check_factorstructure(R, n)
 
-# ── 3. IDENTIFICACIÓN DEL N° DE FACTORES ──────────────────────────
-# Análisis Paralelo para matriz tetracórica
+# 4. Identificación del número de factores
 fap <- fa.parallel(R, n.obs = n, fa = "fa", fm = "wls", 
                    main = "Análisis Paralelo - E-Commerce")
 
-# ── 4. CORRIENDO EL MODELO (MÉTODO WLS Y ROTACIÓN VARIMAX) ────────
-# Usamos fm="wls" y cor="tet" ideal para datos dicotómicos.
-factorial_rotado = fa(test, nfactors = 2, n.obs = n, rotate = "varimax", 
-                      fm = "wls", cor = "tet")
+# 5. Modelamiento y Comparación (Sin Rotar vs Rotado)
+
+# Modelo 1: Sin rotación
+factorial_sin_rotar = fa(test, nfactors = 2, n.obs = n, rotate = "none", fm = "wls", cor = "tet")
+print(factorial_sin_rotar)
+
+# Gráfico del Modelo 1 (Sin rotar) - Exportado para exposición
+png("Diagrama_SinRotar.png", width = 800, height = 600, res = 100)
+fa.diagram(factorial_sin_rotar, e.size = .05, rsize = 3.5, digits = 2, col = "red", main = "Diagrama Factorial (Sin Rotación)")
+dev.off()
+
+# Modelo 2: Con rotación Varimax
+factorial_rotado = fa(test, nfactors = 2, n.obs = n, rotate = "varimax", fm = "wls", cor = "tet")
 print(factorial_rotado)
 
-# ── 5. GRÁFICA DE SEGMENTACIÓN Y CARGAS FACTORIALES ───────────────
-# Gráfico
-e1 = fa.diagram(factorial_rotado, e.size = .05, rsize = 3.5, 
-                digits = 2, col = "blue", main="Diagrama Factorial")
+# Gráfico del Modelo 2 (Rotado) - Exportado para exposición
+png("Diagrama_Rotado.png", width = 800, height = 600, res = 100)
+fa.diagram(factorial_rotado, e.size = .05, rsize = 3.5, digits = 2, col = "blue", main = "Diagrama Factorial (Rotación Varimax)")
+dev.off()
 
-# Extraer y ordenar las cargas factoriales mayores
+# 6. Extracción de Cargas Factoriales (Tabla Final)
 dat = data.frame(ifelse(abs(factorial_rotado$loadings) == apply(abs(factorial_rotado$loadings), 1, max), 
                         apply(abs(factorial_rotado$loadings), 1, max), NA))
 
@@ -81,43 +102,14 @@ fact = gather(dat1, Factor, cargas, -Item) %>% drop_na()
 Cargas = split(fact, fact$Factor) 
 print(Cargas)
 
-# ==================================================================#
-# ── 6. GRÁFICOS COMPLEMENTARIOS PARA LA EXPOSICIÓN ────────────────
-# ==================================================================#
+# 7. Gráficos visuales de impacto para la exposición
 
-# 1. GRÁFICO DE BARRAS: Distribución de respuestas (Exploratorio)
-# Muestra visualmente qué porcentaje de usuarios respondió Sí/No a cada pregunta.
-test_long <- pivot_longer(test, cols = everything(), 
-                          names_to = "Item", values_to = "Respuesta")
-test_long$Respuesta <- factor(test_long$Respuesta, levels = c(0,1), labels = c("No", "Sí"))
+# Mapa de calor de correlaciones
+png("Mapa_Calor.png", width = 800, height = 800, res = 100) 
+cor.plot(R, numbers = TRUE, main = "Matriz de Correlaciones Tetracóricas", las = 2, cex = 0.8, colors = TRUE) 
+dev.off() 
 
-ggplot(test_long, aes(x = Item, fill = Respuesta)) +
-  geom_bar(position = "fill") +
-  scale_y_continuous(labels = scales::percent) +
-  labs(title = "Distribución de Respuestas por Ítem (Sí / No)",
-       x = "Ítems del Cuestionario", y = "Porcentaje",
-       fill = "Respuesta") +
-  theme_minimal(base_size = 12) +
-  scale_fill_manual(values = c("tomato", "steelblue"))
-
-# 2. MAPA DE CALOR (HEATMAP): Matriz de Correlaciones Tetracóricas
-# Exportado directamente a PNG para evitar problemas de márgenes
-
-png("Mapa_Calor.png", width = 800, height = 800, res = 100) # Abre el archivo
-cor.plot(R, 
-         numbers = TRUE, 
-         main = "Mapa de Calor - Correlaciones Tetracóricas",
-         las = 2,       # Gira las etiquetas de los ejes
-         cex = 0.8,     # Tamaño de los números
-         colors = TRUE) # Usa colores azul (positiva) y rojo (negativa)
-dev.off() # Cierra y guarda el archivo
-
-# 3. GRÁFICO DE CARGAS FACTORIALES EN 2D (Factor Loadings Plot)
-# Exportado directamente a PNG para evitar problemas de márgenes y choque de argumentos
-
+# Gráfico de dispersión 2D
 png("Grafico_Cargas_2D.png", width = 800, height = 600, res = 100) 
-plot(factorial_rotado, 
-     labels = rownames(factorial_rotado$loadings),
-     main = "Dispersión de Ítems en el Plano Factorial (2D)",
-     cex = 1.2)  # Eliminamos 'col' para que no choque
+plot(factorial_rotado, labels = rownames(factorial_rotado$loadings), main = "Dispersión Espacial de Ítems (2D)", cex = 1.2)  
 dev.off()

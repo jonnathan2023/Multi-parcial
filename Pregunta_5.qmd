@@ -1,5 +1,6 @@
 ---
 lang: es
+
 format:
   html:
     code-fold: true
@@ -26,8 +27,12 @@ format:
           <p><strong>Docente:</strong> Miranda Villagomez, Clodomiro Fernando</p>
           <p style="font-weight: bold; font-size: 1.4em;">EXAMEN PARCIAL</p>
           <p><strong>Grupo:</strong> 1</p>
+
           <table style="margin: 20px auto; border-collapse: collapse; width: 55%;">
-            <tr><th>Integrantes</th><th>Código</th></tr>
+            <tr>
+              <th>Integrantes</th>
+              <th>Código</th>
+            </tr>
             <tr><td>Meza Asto, Angel D.</td><td>20220810</td></tr>
             <tr><td>Ormeño Sakihama, Daniel Kenyi</td><td>20240723</td></tr>
             <tr><td>Ancco Guzman, Melany Alexandra</td><td>20230379</td></tr>
@@ -36,12 +41,18 @@ format:
             <tr><td>Garay Ramos, Jose Luis</td><td>20230678</td></tr>
             <tr><td>Sobero Aguirre, Fiorella Romina</td><td>20091130</td></tr>
           </table>
+
           <p>LA MOLINA - LIMA - PERÚ</p>
           <p>2026 - I</p>
         </div>
         <hr/>
+
+editor:
+  markdown:
+    wrap: 72
 ---
 
+```{=html}
 <style>
 body { font-size: 15px; line-height: 1.7; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 h1 { font-size: 24px; color: #2C3E50; border-bottom: 2px solid #2C3E50; }
@@ -56,6 +67,7 @@ h2 { font-size: 20px; color: #2980B9; }
   font-style: italic;
 }
 </style>
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, comment = NA)
@@ -70,16 +82,46 @@ library(ggrepel)
 ```
 
 # Análisis Factorial Dicotómico
-## Introducción
-En el análisis de datos provenientes de encuestas de satisfacción o comportamiento del consumidor, es frecuente encontrarse con variables de naturaleza dicotómica (Sí/No, Presencia/Ausencia). El Análisis Factorial Dicotómico (AFD) surge como la herramienta estadística necesaria cuando el supuesto de continuidad de las variables observadas no se cumple.
 
-A diferencia del análisis factorial clásico que utiliza la correlación de Pearson, el AFD emplea la matriz de correlaciones tetracóricas. Este enfoque asume que detrás de cada respuesta binaria existe una propensión latente continua que sigue una distribución normal. En este estudio, aplicamos esta técnica para reducir la dimensionalidad de un conjunto de 10 indicadores sobre el comportamiento de usuarios en plataformas de E-Commerce en Perú.
+## Introducción
+
+En el análisis de datos provenientes de encuestas de satisfacción o
+comportamiento del consumidor, es frecuente encontrarse con variables de
+naturaleza dicotómica (Sí/No, Presencia/Ausencia). El Análisis Factorial
+Dicotómico (AFD) surge como la herramienta estadística necesaria cuando
+el supuesto de continuidad de las variables observadas no se cumple.
+
+A diferencia del análisis factorial clásico que utiliza la correlación
+de Pearson, el AFD emplea la matriz de correlaciones tetracóricas. Este
+enfoque asume que detrás de cada respuesta binaria existe una propensión
+latente continua que sigue una distribución normal. En este estudio,
+aplicamos esta técnica para reducir la dimensionalidad de un conjunto de
+10 indicadores sobre el comportamiento de usuarios en plataformas de
+E-Commerce en Perú.
+
+Matemáticamente, para cada variable dicotómica observada $y_i$, el
+modelo tetracórico asume la existencia de una variable latente continua
+y subyacente $y_i^* \sim N(0,1)$, tal que la respuesta observada se
+define mediante un umbral $\tau_i$:
+
+$$
+y_i = 
+\begin{cases} 
+1 & \text{si } y_i^* \geq \tau_i \\ 
+0 & \text{si } y_i^* < \tau_i 
+\end{cases}
+$$
+
+Es sobre estas variables latentes $y^*$ que se calcula la estructura de
+correlaciones, evitando la atenuación típica del coeficiente de Pearson.
 
 ## Definición de Variables y Dimensiones Teóricas
-A continuación, se detalla el constructo evaluado, dividido en dos dimensiones latentes hipotéticas:
+
+A continuación, se detalla el constructo evaluado, dividido en dos
+dimensiones latentes hipotéticas:
 
 | Dimensión Latente | Ítem | Descripción de la Variable (1 = Sí, 0 = No) |
-|:---|:---:|:---|
+|:---------------------|:--------------------------:|:---------------------|
 | **F1: Seguridad y Prevención** | P1 | Verifica que la página cuente con certificado HTTPS. |
 | **F1: Seguridad y Prevención** | P2 | Evita guardar activamente los datos de su tarjeta en la web. |
 | **F1: Seguridad y Prevención** | P3 | Lee exhaustivamente las políticas de devoluciones. |
@@ -91,18 +133,40 @@ A continuación, se detalla el constructo evaluado, dividido en dos dimensiones 
 | **F2: Hábitos de Consumo Digital** | P9 | Suele dejar reseñas o valoraciones de los productos adquiridos. |
 | **F2: Hábitos de Consumo Digital** | P10 | Planifica sus compras para coincidir con días de descuento (Cyber). |
 
+Bajo el enfoque de validación, el modelo de Análisis Factorial
+Exploratorio (AFE) asume que el vector de variables observadas
+$\mathbf{X}$ se puede expresar como una combinación lineal de factores
+comunes latentes $\mathbf{F}$ y un vector de errores o factores únicos
+$\mathbf{\epsilon}$:
+
+$$\mathbf{X} = \boldsymbol{\mu} + \boldsymbol{\Lambda} \mathbf{F} + \boldsymbol{\epsilon}$$
+
+Donde para nuestro estudio bidimensional, cada ítem $x_i$ se modela
+matemáticamente como:
+
+$$x_i = \lambda_{i1}F_{Hábitos} + \lambda_{i2}F_{Seguridad} + \epsilon_i \quad \forall i = 1, \dots, 10$$
+
+Donde $\lambda_{ij}$ representa la carga factorial del ítem $i$ en el
+factor $j$.
+
 ## Objetivos
 
-1. Validar la estructura factorial de la encuesta mediante el uso de matrices tetracóricas.  
+1.  Validar la estructura factorial de la encuesta mediante el uso de
+    matrices tetracóricas.
 
-2. Identificar las cargas factoriales bajo el método de extracción de Mínimos Cuadrados Ponderados (WLS).  
+2.  Identificar las cargas factoriales bajo el método de extracción de
+    Mínimos Cuadrados Ponderados (WLS).
 
-3. Comparar la interpretabilidad del modelo mediante rotaciones ortogonales (Varimax).  
+3.  Comparar la interpretabilidad del modelo mediante rotaciones
+    ortogonales (Varimax).
 
-4. Determinar el nivel de adecuación de la muestra para el análisis de reducción de datos.
+4.  Determinar el nivel de adecuación de la muestra para el análisis de
+    reducción de datos.
 
 ## Carga y Preparación de los Datos
-Se procede con la lectura del archivo de datos para el presente estudio. La muestra consta de $n = 400$ observaciones.
+
+Se procede con la lectura del archivo de datos para el presente estudio.
+La muestra consta de $n = 400$ observaciones.
 
 ```{r}
 # Importación del archivo de datos
@@ -112,22 +176,33 @@ kable(head(test, 10), caption = "Visualización de los primeros registros del da
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
-***
+------------------------------------------------------------------------
 
 ## Verificación de Supuestos
+
 ### Análisis de Medias y "Factores de Dificultad"
-Antes de la extracción, verificamos que las proporciones de respuesta no sean extremas para evitar sesgos de agrupación por frecuencia.
+
+Antes de la extracción, verificamos que las proporciones de respuesta no
+sean extremas para evitar sesgos de agrupación por frecuencia.
+
 ```{r}
 prop_resp <- colMeans(test)
 kable(t(round(prop_resp, 3)), caption = "Proporción de Respuestas Afirmativas") %>% kable_styling()
 ```
-::: {.nota}
-**Interpretación Teórica:** 
-Las medias se sitúan cerca de 0.50 (rango 0.46 - 0.53). Esto garantiza que no existen "factores de dificultad", permitiendo que la agrupación factorial se deba estrictamente al contenido de las variables y no a la probabilidad de respuesta.
+
+::: nota
+**Interpretación Teórica:** Las medias se sitúan cerca de 0.50 (rango
+0.46 - 0.53). Esto garantiza que no existen "factores de dificultad",
+permitiendo que la agrupación factorial se deba estrictamente al
+contenido de las variables y no a la probabilidad de respuesta.
 :::
 
 ### Matriz de Correlaciones Tetracóricas
-Calculamos la matriz de asociación adecuada para el tratamiento de datos binarios, dado que una correlación clásica de Pearson subestimaría las relaciones.
+
+Calculamos la matriz de asociación adecuada para el tratamiento de datos
+binarios, dado que una correlación clásica de Pearson subestimaría las
+relaciones.
+
 ```{r}
 # Cálculo de matriz tetracórica
 r.tetra = tetrachoric(test)
@@ -137,15 +212,35 @@ R = r.tetra$rho
 corrplot(R, method = "color", type = "upper", addCoef.col = "black", 
          number.cex = 0.7, tl.col = "black", title = "Matriz Tetracórica de E-Commerce", mar=c(0,0,1,0))
 ```
-::: {.nota}
-**Interpretación de la Matriz:**
-El uso de la matriz tetracórica revela fuertes agrupaciones internas. Los ítems de Seguridad (P1-P5) muestran correlaciones positivas moderadas/altas entre sí, al igual que los ítems de Hábitos (P6-P10). Asimismo, la correlación cruzada entre ambos bloques es cercana a cero, anticipando la existencia de dos factores latentes ortogonales.
+
+::: nota
+**Interpretación de la Matriz:** El uso de la matriz tetracórica revela
+fuertes agrupaciones internas. Los ítems de Seguridad (P1-P5) muestran
+correlaciones positivas moderadas/altas entre sí, al igual que los ítems
+de Hábitos (P6-P10). Asimismo, la correlación cruzada entre ambos
+bloques es cercana a cero, anticipando la existencia de dos factores
+latentes ortogonales.
 :::
 
-***
+------------------------------------------------------------------------
 
 ### Pruebas de Factorabilidad
-Evaluamos si la estructura de correlaciones permite la reducción de datos mediante la Prueba de Bartlett y el Índice KMO.
+
+Evaluamos si la estructura de correlaciones permite la reducción de datos mediante la Prueba de Esfericidad de Bartlett y el Índice KMO.
+
+**1. Prueba de Esfericidad de Bartlett:**
+Evalúa la hipótesis nula de que la matriz de correlaciones poblacional es una matriz identidad ($\mathbf{R} = \mathbf{I}$), lo que implicaría que las variables son independientes. El estadístico se aproxima a una distribución Chi-cuadrado y se calcula a partir del determinante de la matriz de correlaciones muestral ($|\mathbf{R}|$):
+
+$$\chi^2 = -\left( n - 1 - \frac{2p + 5}{6} \right) \ln |\mathbf{R}|$$
+
+Donde $n$ es el tamaño de la muestra, $p$ es el número de variables, y los grados de libertad son $df = \frac{p(p-1)}{2}$. Un valor $p$ significativo rechaza la hipótesis nula, justificando la extracción.
+
+**2. Medida de Adecuación Muestral (KMO):**
+Matemáticamente, el estadístico KMO compara las magnitudes de los coeficientes de correlación observados ($r_{ij}$) con las magnitudes de los coeficientes de correlación parcial ($a_{ij}$):
+
+$$KMO = \frac{\sum_{i \neq j} r_{ij}^2}{\sum_{i \neq j} r_{ij}^2 + \sum_{i \neq j} a_{ij}^2}$$
+
+Un KMO cercano a 1 indica que las correlaciones parciales ($a_{ij}$) son cercanas a cero, lo que implica que las variables comparten suficiente varianza común para justificar la reducción dimensional.
 
 ```{r}
 # Ejecución de pruebas
@@ -156,44 +251,73 @@ kmo_res <- KMO(R)
 # Comprobación de estructura según performance
 check_factorstructure(R, n = n_obs)
 ```
-::: {.nota}
-**Interpretación de Supuestos (Factorabilidad):**  
 
-La prueba de esfericidad de Bartlett resultó altamente significativa (\(\chi^2(45)=1245.43,\ p < 0.001\)), por lo que se rechaza la hipótesis nula de matriz identidad. En consecuencia, las variables presentan correlaciones suficientes entre sí, condición necesaria para aplicar análisis factorial.  
+::: nota
+**Interpretación de Supuestos (Factorabilidad):**
 
-Complementariamente, el índice KMO global fue de **0.79**, valor considerado como una adecuación muestral **notable**, lo cual indica que los patrones de correlación son apropiados para identificar factores comunes subyacentes.  
+La prueba de esfericidad de Bartlett resultó altamente significativa
+((\chi\^2(45)=1245.43, p \< 0.001)), por lo que se rechaza la hipótesis
+nula de matriz identidad. En consecuencia, las variables presentan
+correlaciones suficientes entre sí, condición necesaria para aplicar
+análisis factorial.
 
-Asimismo, los índices KMO individuales oscilaron entre **0.75 y 0.84**, superando los niveles mínimos recomendados, por lo que ningún ítem requiere ser eliminado por problemas de adecuación.  
+Complementariamente, el índice KMO global fue de **0.79**, valor
+considerado como una adecuación muestral **notable**, lo cual indica que
+los patrones de correlación son apropiados para identificar factores
+comunes subyacentes.
 
-En conjunto, ambos resultados proporcionan evidencia estadística favorable para proceder con la extracción de factores latentes.
+Asimismo, los índices KMO individuales oscilaron entre **0.75 y 0.84**,
+superando los niveles mínimos recomendados, por lo que ningún ítem
+requiere ser eliminado por problemas de adecuación.
+
+En conjunto, ambos resultados proporcionan evidencia estadística
+favorable para proceder con la extracción de factores latentes.
 :::
 
-***
+------------------------------------------------------------------------
 
 ## Determinación del Número de Factores
-Utilizamos el Análisis Paralelo, la técnica más robusta, para identificar los autovalores que superan la varianza atribuible puramente al azar.
+
+Utilizamos el Análisis Paralelo, la técnica más robusta, para
+identificar los autovalores que superan la varianza atribuible puramente
+al azar.
 
 ```{r}
 fap <- fa.parallel(R, n.obs = n_obs, fa = "fa", fm = "wls", 
                    main = "Análisis Paralelo para E-Commerce")
 ```
 
-::: {.nota}
-**Interpretación del Análisis Paralelo:**  
+::: nota
+**Interpretación del Análisis Paralelo:**
 
-El análisis paralelo indicó la retención de **2 factores comunes**, dado que únicamente los dos primeros autovalores observados superan a los autovalores generados mediante datos aleatorios simulados.  
+El análisis paralelo indicó la retención de **2 factores comunes**, dado
+que únicamente los dos primeros autovalores observados superan a los
+autovalores generados mediante datos aleatorios simulados.
 
-Esto evidencia que solo dos dimensiones presentan varianza común sistemática superior a la esperada por azar, mientras que los factores restantes reflejan principalmente error muestral o variabilidad residual.  
+Esto evidencia que solo dos dimensiones presentan varianza común
+sistemática superior a la esperada por azar, mientras que los factores
+restantes reflejan principalmente error muestral o variabilidad
+residual.
 
-En consecuencia, se justifica estadísticamente la extracción de **dos factores latentes**, resultado coherente con la estructura teórica propuesta para el instrumento: **Seguridad y Prevención** y **Hábitos de Consumo Digital**.  
+En consecuencia, se justifica estadísticamente la extracción de **dos
+factores latentes**, resultado coherente con la estructura teórica
+propuesta para el instrumento: **Seguridad y Prevención** y **Hábitos de
+Consumo Digital**.
 
-Asimismo, este criterio reduce el riesgo de sobre-extracción asociado a reglas tradicionales como el criterio de Kaiser.
+Asimismo, este criterio reduce el riesgo de sobre-extracción asociado a
+reglas tradicionales como el criterio de Kaiser.
 :::
 
-***
+------------------------------------------------------------------------
 
-## Modelamiento del Análisis Factorial: 
-Se utiliza el método de Mínimos Cuadrados Ponderados (WLS), el cual es ideal para datos categóricos. Para demostrar la necesidad de la rotación, primero ajustaremos un modelo base sin rotar y luego aplicaremos la rotación ortogonal **Varimax** en búsqueda de la "Estructura Simple".
+## Modelamiento del Análisis Factorial
+
+En esta etapa se procede con la estimación de los parámetros del modelo. Siguiendo el rigor metodológico propuesto por **Aldás y Uriel (2017)** para el tratamiento de datos no métricos, se utiliza el método de **Mínimos Cuadrados Ponderados (WLS)**.
+
+A diferencia del método de Máxima Verosimilitud (ML), que requiere el cumplimiento estricto de la normalidad multivariante, el estimador WLS es una aproximación Asintóticamente Libre de Distribución (ADF). Este método estima las cargas factoriales ($\boldsymbol{\Lambda}$) y las varianzas únicas ($\boldsymbol{\Psi}$) minimizando la función de discrepancia entre el vector de correlaciones tetracóricas observadas ($\mathbf{s}$) y el vector de correlaciones reproducidas por el modelo ($\boldsymbol{\sigma}(\boldsymbol{\theta})$), mediante una matriz de pesos $\mathbf{W}$ que captura la variabilidad asintótica de los datos:
+
+$$F_{WLS} = (\mathbf{s} - \boldsymbol{\sigma}(\boldsymbol{\theta}))^T \mathbf{W}^{-1} (\mathbf{s} - \boldsymbol{\sigma}(\boldsymbol{\theta}))$$
+Esta técnica es la recomendada en la literatura econométrica y psicométrica cuando se trabaja con matrices tetracóricas, ya que garantiza estimaciones consistentes y errores estándar robustos. Finalmente, para alcanzar la **Estructura Simple** y optimizar la interpretación sustantiva de los factores de Seguridad y Hábitos, se contrastará el ajuste inicial con el modelo bajo rotación ortogonal **Varimax**.
 
 ```{r, fig.width=12, fig.height=6}
 # 1. Ajuste del modelo SIN rotar
@@ -217,21 +341,30 @@ fa.diagram(factorial_final, e.size = .05, rsize = 3.5, digits = 2,
 par(mfrow = c(1, 1))
 ```
 
-::: {.nota}
-**Justificación de la Rotación:**  
+::: nota
+**Justificación de la Rotación:**
 
-En el modelo sin rotación se observa una estructura menos definida, con cargas factoriales relativamente dispersas y menor claridad interpretativa.  
+En el modelo sin rotación se observa una estructura menos definida, con
+cargas factoriales relativamente dispersas y menor claridad
+interpretativa.
 
-Tras aplicar la rotación ortogonal Varimax, se maximiza la varianza de las cargas dentro de cada factor, obteniéndose una estructura simple más clara, donde cada ítem se asocia predominantemente con una sola dimensión latente.  
+Tras aplicar la rotación ortogonal Varimax, se maximiza la varianza de
+las cargas dentro de cada factor, obteniéndose una estructura simple más
+clara, donde cada ítem se asocia predominantemente con una sola
+dimensión latente.
 
-Como resultado, se distinguen con mayor nitidez los factores correspondientes a **Hábitos de Consumo Digital** y **Seguridad y Prevención**, facilitando la interpretación sustantiva del modelo.
+Como resultado, se distinguen con mayor nitidez los factores
+correspondientes a **Hábitos de Consumo Digital** y **Seguridad y
+Prevención**, facilitando la interpretación sustantiva del modelo.
 :::
 
-***
+------------------------------------------------------------------------
 
 ## Resultados y Clasificación
-Se desglosan las cargas factoriales finales. Primero se presenta la **matriz completa** de cargas rotadas para verificar la ausencia de cargas cruzadas, y
-luego la clasificación por dimensión.
+
+Se desglosan las cargas factoriales finales. Primero se presenta la
+**matriz completa** de cargas rotadas para verificar la ausencia de
+cargas cruzadas, y luego la clasificación por dimensión.
 
 ```{r}
 # ── 1. Matriz Completa de cargas rotadas ──────────────────────────────────────
@@ -288,22 +421,49 @@ kable(Cargas$WLS2, digits = 3, row.names = FALSE,
   column_spec(3, bold = TRUE, color = "#E74C3C")
 ```
 
-::: {.nota}
-**Interpretación de Cargas Factoriales:**  
+::: nota
+**Interpretación de Cargas Factoriales:**
 
-La matriz de cargas rotadas evidencia que ningún ítem presenta saturaciones cruzadas iguales o superiores a 0.30, lo cual respalda una **estructura simple** conforme al criterio de Thurstone. Esto indica adecuada **validez discriminante**, al observarse una diferenciación clara entre dimensiones latentes.  
+La matriz de cargas rotadas evidencia que ningún ítem presenta
+saturaciones cruzadas iguales o superiores a 0.30, lo cual respalda una
+**estructura simple** conforme al criterio de Thurstone. Esto indica
+adecuada **validez discriminante**, al observarse una diferenciación
+clara entre dimensiones latentes.
 
-Asimismo, todas las cargas principales superan el umbral de 0.50, reflejando asociaciones factoriales moderadas a altas y aportando evidencia de **validez convergente**, ya que los ítems representan consistentemente el constructo al que pertenecen.  
+Asimismo, todas las cargas principales superan el umbral de 0.50,
+reflejando asociaciones factoriales moderadas a altas y aportando
+evidencia de **validez convergente**, ya que los ítems representan
+consistentemente el constructo al que pertenecen.
 
-**Dimensión 1 — Hábitos de Consumo Digital:** presenta sus mayores saturaciones en **P10** (λ = 0.799) y **P7** (λ = 0.731), sugiriendo que la planificación estratégica de compras y la preferencia por canales digitales oficiales constituyen los indicadores más representativos del comportamiento de consumo en línea.  
+**Dimensión 1 — Hábitos de Consumo Digital:** presenta sus mayores
+saturaciones en **P10** (λ = 0.799) y **P7** (λ = 0.731), sugiriendo que
+la planificación estratégica de compras y la preferencia por canales
+digitales oficiales constituyen los indicadores más representativos del
+comportamiento de consumo en línea.
 
-**Dimensión 2 — Seguridad y Prevención:** muestra mayores cargas en **P2** (λ = 0.728) y **P5** (λ = 0.700), evidenciando que la protección de datos financieros y la prevención frente a riesgos tecnológicos son componentes centrales de esta dimensión.  
-En términos globales, los resultados confirman una solución factorial interpretable, estable y coherente con la estructura teórica propuesta inicialmente.
+**Dimensión 2 — Seguridad y Prevención:** muestra mayores cargas en
+**P2** (λ = 0.728) y **P5** (λ = 0.700), evidenciando que la protección
+de datos financieros y la prevención frente a riesgos tecnológicos son
+componentes centrales de esta dimensión.\
+En términos globales, los resultados confirman una solución factorial
+interpretable, estable y coherente con la estructura teórica propuesta
+inicialmente.
 :::
 
-***
+------------------------------------------------------------------------
+
 ## Análisis de Comunalidades ($h^2$)
-La comunalidad indica la proporción de la varianza de cada ítem que logra ser explicada por los dos factores retenidos en el modelo.
+
+La comunalidad indica la proporción de la varianza de cada ítem que
+logra ser explicada por los dos factores retenidos en el modelo.
+
+Según el teorema de descomposición de la varianza en el Análisis Factorial Ortogonal, la varianza total de cada ítem estandarizado ($V(x_i) = 1$) se particiona en dos componentes: la **Comunalidad** ($h_i^2$) y la **Especificidad** ($\psi_i^2$). 
+
+$$V(x_i) = h_i^2 + \psi_i^2 = 1$$
+
+Donde $h_i^2$ es la suma de las cargas factoriales al cuadrado ($\lambda$) de las dimensiones extraídas:
+
+$$h_i^2 = \sum_{j=1}^{k} \lambda_{ij}^2$$
 
 ```{r}
 comunalidades <- data.frame(
@@ -324,38 +484,48 @@ kable(comunalidades,
   footnote(general = "Verde: h² ≥ 0.60 (alta representación). Naranja: h² < 0.40 (representación moderada).")
 ```
 
-::: {.nota}
+::: nota
 **Interpretación de Comunalidades (h²) y Especificidades (ψ²):**
 
-La comunalidad representa la proporción de varianza de cada ítem explicada por 
-los dos factores comunes retenidos, mientras que la especificidad corresponde a 
-la varianza residual asociada a factores únicos o error de medición.
+La comunalidad representa la proporción de varianza de cada ítem
+explicada por los dos factores comunes retenidos, mientras que la
+especificidad corresponde a la varianza residual asociada a factores
+únicos o error de medición.
 
-En términos generales, la mayoría de los ítems presentan comunalidades aceptables 
-o altas, lo que indica que el modelo factorial logra representar adecuadamente la 
-estructura interna del instrumento. Destacan los ítems **P10** (h² = 0.639), 
-**P7** (h² = 0.535) y **P2** (h² = 0.531), evidenciando fuerte vinculación con 
-las dimensiones latentes identificadas.
+En términos generales, la mayoría de los ítems presentan comunalidades
+aceptables o altas, lo que indica que el modelo factorial logra
+representar adecuadamente la estructura interna del instrumento.
+Destacan los ítems **P10** (h² = 0.639), **P7** (h² = 0.535) y **P2**
+(h² = 0.531), evidenciando fuerte vinculación con las dimensiones
+latentes identificadas.
 
-Los ítems **P1, P3, P4 y P6** muestran niveles aceptables de representación, 
-contribuyendo de manera satisfactoria al modelo aunque con menor intensidad. 
-Respecto a la **Especificidad (ψ²)**, P8 y P4 presentan los valores más altos 
-(0.705 y 0.668 respectivamente), indicando que una porción importante de su 
-varianza es idiosincrática y no compartida con los factores comunes.
+Los ítems **P1, P3, P4 y P6** muestran niveles aceptables de
+representación, contribuyendo de manera satisfactoria al modelo aunque
+con menor intensidad. Respecto a la **Especificidad (ψ²)**, P8 y P4
+presentan los valores más altos (0.705 y 0.668 respectivamente),
+indicando que una porción importante de su varianza es idiosincrática y
+no compartida con los factores comunes.
 
-El ítem **P8** presenta una comunalidad de 0.295, valor limítrofe marginalmente 
-por debajo del umbral de 0.30. Dado que la diferencia es de apenas 0.005, no se 
-considera una deficiencia estructural del instrumento, pero sí una señal para 
-monitorear este reactivo en réplicas futuras, evaluando su redacción o consistencia 
-conceptual con la dimensión a la que pertenece.
+El ítem **P8** presenta una comunalidad de 0.295, valor limítrofe
+marginalmente por debajo del umbral de 0.30. Dado que la diferencia es
+de apenas 0.005, no se considera una deficiencia estructural del
+instrumento, pero sí una señal para monitorear este reactivo en réplicas
+futuras, evaluando su redacción o consistencia conceptual con la
+dimensión a la que pertenece.
 
-En conjunto, las comunalidades respaldan la pertinencia global del instrumento, 
-aunque revelan oportunidades de mejora puntual en P8 específicamente.
+En conjunto, las comunalidades respaldan la pertinencia global del
+instrumento, aunque revelan oportunidades de mejora puntual en P8
+específicamente.
 :::
 
-***
+------------------------------------------------------------------------
+
 ## Evaluación de la Calidad y Fiabilidad del Modelo
-Para validar que el modelo representa adecuadamente a la población, evaluamos la bondad de ajuste y calculamos la consistencia interna mediante el Coeficiente Omega, el cual no se ve afectado por la atenuación típica del Alfa de Cronbach en datos dicotómicos.
+
+Para validar que el modelo representa adecuadamente a la población,
+evaluamos la bondad de ajuste y calculamos la consistencia interna
+mediante el Coeficiente Omega, el cual no se ve afectado por la
+atenuación típica del Alfa de Cronbach en datos dicotómicos.
 
 ```{r}
 # ── Índices de Bondad de Ajuste ───────────────────────────────────────────────
@@ -391,44 +561,52 @@ omega_res <- omega(R, nfactors = 2, fm = "wls", plot = FALSE, n.iter = 1)
 cat("Fiabilidad Omega Total del Instrumento:", round(omega_res$omega.tot, 3), "\n")
 ```
 
-::: {.nota}
+::: nota
 **Evaluación de la Calidad del Modelo:**
 
-Los índices de bondad de ajuste ofrecen una valoración integral de la precisión 
-con la que el modelo factorial reproduce la estructura de correlaciones observada:
+Los índices de bondad de ajuste ofrecen una valoración integral de la
+precisión con la que el modelo factorial reproduce la estructura de
+correlaciones observada:
 
-- **RMSR = 0.036:** Por debajo del umbral de 0.08, indica que los residuos entre 
-  la matriz observada y la reproducida son mínimos. El modelo ajusta bien a nivel 
-  local.
+-   **RMSR = 0.036:** Por debajo del umbral de 0.08, indica que los
+    residuos entre la matriz observada y la reproducida son mínimos. El
+    modelo ajusta bien a nivel local.
 
-- **TLI = 0.92:** Supera el umbral crítico de 0.90, confirmando que el modelo de 
-  dos factores representa una mejora sustancial respecto al modelo nulo.
+-   **TLI = 0.92:** Supera el umbral crítico de 0.90, confirmando que el
+    modelo de dos factores representa una mejora sustancial respecto al
+    modelo nulo.
 
-- **RMSEA = 0.073:** Se encuentra por debajo del límite aceptable de 0.08, lo que 
-  indica un error de aproximación tolerable en la población. Un valor inferior a 
-  0.05 sería considerado excelente, pero 0.073 es plenamente aceptable para un 
-  modelo con datos dicotómicos.
+-   **RMSEA = 0.073:** Se encuentra por debajo del límite aceptable de
+    0.08, lo que indica un error de aproximación tolerable en la
+    población. Un valor inferior a 0.05 sería considerado excelente,
+    pero 0.073 es plenamente aceptable para un modelo con datos
+    dicotómicos.
 
-- **Varianza Acumulada = 0.464:** Los dos factores explican el 46.4% de la 
-  varianza total del instrumento, valor ligeramente por debajo del umbral 
-  convencional de 0.50. Esto es esperable en modelos con datos binarios, donde 
-  la varianza total es estructuralmente más limitada que en variables continuas, 
-  y no compromete la validez del modelo dado el buen desempeño de los demás índices.
+-   **Varianza Acumulada = 0.464:** Los dos factores explican el 46.4%
+    de la varianza total del instrumento, valor ligeramente por debajo
+    del umbral convencional de 0.50. Esto es esperable en modelos con
+    datos binarios, donde la varianza total es estructuralmente más
+    limitada que en variables continuas, y no compromete la validez del
+    modelo dado el buen desempeño de los demás índices.
 
-- **Omega = 0.817:** Supera el umbral de 0.80, certificando que el instrumento 
-  tiene una **fiabilidad alta**. Se prefiere Omega sobre Alfa de Cronbach porque 
-  no asume tau-equivalencia entre los ítems, condición que raramente se cumple 
-  en escalas dicotómicas.
+-   **Omega = 0.817:** Supera el umbral de 0.80, certificando que el
+    instrumento tiene una **fiabilidad alta**. Se prefiere Omega sobre
+    Alfa de Cronbach porque no asume tau-equivalencia entre los ítems,
+    condición que raramente se cumple en escalas dicotómicas.
 
-En conjunto, tres de los cuatro índices cumplen sus umbrales de referencia y el 
-cuarto (varianza acumulada) se explica por la naturaleza dicotómica de los datos, 
-por lo que el modelo se considera **estadísticamente válido y confiable**.
+En conjunto, tres de los cuatro índices cumplen sus umbrales de
+referencia y el cuarto (varianza acumulada) se explica por la naturaleza
+dicotómica de los datos, por lo que el modelo se considera
+**estadísticamente válido y confiable**.
 :::
 
-***
+------------------------------------------------------------------------
 
 ## Gráficos de Dispersión
-Visualización de las coordenadas en el plano cartesiano generado por las dos dimensiones latentes extraídas.
+
+Visualización de las coordenadas en el plano cartesiano generado por las
+dos dimensiones latentes extraídas.
+
 ```{r, fig.width=8, fig.height=7, warning=FALSE, message=FALSE}
 library(ggrepel)
 
@@ -493,48 +671,62 @@ ggplot(cargas_gg, aes(x = Dim1_Habitos, y = Dim2_Seguridad,
   )
 ```
 
-::: {.nota}
+::: nota
 **Interpretación del Gráfico de Dispersión Factorial:**
 
-El gráfico representa las cargas factoriales de cada ítem como vectores en el 
-espacio bidimensional definido por WLS1 (Hábitos) y WLS2 (Seguridad), estimadas 
-a partir de la **matriz tetracórica** mediante **WLS**. La longitud del vector 
-indica la magnitud de la saturación; su dirección, la dimensión dominante. El 
-**círculo punteado** delimita el umbral |λ| = 0.40.
+El gráfico representa las cargas factoriales de cada ítem como vectores
+en el espacio bidimensional definido por WLS1 (Hábitos) y WLS2
+(Seguridad), estimadas a partir de la **matriz tetracórica** mediante
+**WLS**. La longitud del vector indica la magnitud de la saturación; su
+dirección, la dimensión dominante. El **círculo punteado** delimita el
+umbral \|λ\| = 0.40.
 
-**Dimensión F2 — Seguridad y Prevención (vectores rojos):**
-Los ítems P1–P5 proyectan sus vectores claramente hacia el eje vertical (WLS2), 
-confirmando su pertenencia a esta dimensión. Destacan **P2** y **P5** como los 
-vectores de mayor longitud dentro del cuadrante, lo que los identifica como los 
-indicadores más representativos de la cultura de prevención digital. **P4**, en 
-cambio, muestra un vector más corto que apenas supera el círculo de umbral, 
-coherente con su comunalidad más baja (h² = 0.332) reportada en la sección anterior.
+**Dimensión F2 — Seguridad y Prevención (vectores rojos):** Los ítems
+P1–P5 proyectan sus vectores claramente hacia el eje vertical (WLS2),
+confirmando su pertenencia a esta dimensión. Destacan **P2** y **P5**
+como los vectores de mayor longitud dentro del cuadrante, lo que los
+identifica como los indicadores más representativos de la cultura de
+prevención digital. **P4**, en cambio, muestra un vector más corto que
+apenas supera el círculo de umbral, coherente con su comunalidad más
+baja (h² = 0.332) reportada en la sección anterior.
 
-**Dimensión F1 — Hábitos de Consumo Digital (vectores azules):**
-Los ítems P6–P10 se proyectan sobre el eje horizontal (WLS1) con valores 
-prácticamente nulos en WLS2. **P10**, **P9** y **P7** presentan los vectores 
-más largos de esta dimensión, reafirmando su rol como indicadores principales 
-del consumo digital planificado. Notablemente, **P8** y **P9** presentan una 
-leve coordenada negativa en WLS2, lo cual es consistente con su baja comunalidad 
-y sugiere que estos ítems tienen una asociación débil —aunque no problemática— 
-con el factor de Seguridad en sentido inverso.
+**Dimensión F1 — Hábitos de Consumo Digital (vectores azules):** Los
+ítems P6–P10 se proyectan sobre el eje horizontal (WLS1) con valores
+prácticamente nulos en WLS2. **P10**, **P9** y **P7** presentan los
+vectores más largos de esta dimensión, reafirmando su rol como
+indicadores principales del consumo digital planificado. Notablemente,
+**P8** y **P9** presentan una leve coordenada negativa en WLS2, lo cual
+es consistente con su baja comunalidad y sugiere que estos ítems tienen
+una asociación débil —aunque no problemática— con el factor de Seguridad
+en sentido inverso.
 
-**Estructura Simple:**
-Ningún vector apunta diagonalmente entre los dos ejes, lo que confirma la 
-**ausencia de cargas cruzadas** relevantes. Los dos grupos están claramente 
-separados en cuadrantes distintos, validando la ortogonalidad impuesta por la 
-rotación Varimax y la pertinencia teórica del instrumento de dos dimensiones.
+**Estructura Simple:** Ningún vector apunta diagonalmente entre los dos
+ejes, lo que confirma la **ausencia de cargas cruzadas** relevantes. Los
+dos grupos están claramente separados en cuadrantes distintos, validando
+la ortogonalidad impuesta por la rotación Varimax y la pertinencia
+teórica del instrumento de dos dimensiones.
 :::
 
 ## Conclusiones y Recomendaciones
 
-1. **Conclusión Estadística:** Se validaron dos dimensiones latentes ortogonales que explican el comportamiento del consumidor digital peruano con alta precisión.
+1.  **Conclusión Estadística:** Se validaron dos dimensiones latentes
+    ortogonales que explican el comportamiento del consumidor digital
+    peruano con alta precisión.
 
-2. **Hallazgo Principal:** El ítem P10 (Planificación de Cyber Days) es el mayor predictor de los hábitos, mientras que P2 (Seguridad de Tarjeta) lidera la cultura de prevención.
+2.  **Hallazgo Principal:** El ítem P10 (Planificación de Cyber Days) es
+    el mayor predictor de los hábitos, mientras que P2 (Seguridad de
+    Tarjeta) lidera la cultura de prevención.
 
-3. **Recomendación Estratégica:** Las empresas de E-commerce deben reforzar la comunicación de protocolos de seguridad (HTTPS y Pasarelas) durante campañas masivas de descuentos, ya que el usuario peruano presenta una dimensión de "Cultura Defensiva" muy marcada que influye en su decisión de compra.
+3.  **Recomendación Estratégica:** Las empresas de E-commerce deben
+    reforzar la comunicación de protocolos de seguridad (HTTPS y
+    Pasarelas) durante campañas masivas de descuentos, ya que el usuario
+    peruano presenta una dimensión de "Cultura Defensiva" muy marcada
+    que influye en su decisión de compra.
 
 # Bibliografía
-- Aldás, J., & Uriel, E. (2017). Análisis multivariante aplicado con R. 2da Edición. Madrid: Ediciones Paraninfo.
 
-- Revelle, W. (2024). psych: Procedures for Psychological, Psychometric, and Personality Research. R package.
+-   Aldás, J., & Uriel, E. (2017). Análisis multivariante aplicado
+    con R. 2da Edición. Madrid: Ediciones Paraninfo.
+
+-   Revelle, W. (2024). psych: Procedures for Psychological,
+    Psychometric, and Personality Research. R package.

@@ -42,7 +42,603 @@ format:
         <hr/>
 ---
 
-# Pregunta 1
+```{r}
+#| label: setup
+#| include: false
+paquetes <- c("psych", "knitr", "GGally", "ggplot2", "gridExtra",
+              "mvnormtest", "car", "lmtest", "kableExtra")
+for (p in paquetes) {
+  if (!require(p, character.only = TRUE, quietly = TRUE))
+    install.packages(p, quiet = TRUE)
+  library(p, character.only = TRUE, quietly = TRUE)
+}
+```
+
+# Modelo de Regresión Lineal Multivariada
+
+## Presentación del caso
+
+### Introducción y contexto
+
+El café arábica producido en la selva alta del Perú ocupa un lugar destacado en los mercados internacionales de café de especialidad. Regiones como Junín, San Martín, Cajamarca, Amazonas y Cusco, ubicadas entre los 1 000 y los 2 200 metros sobre el nivel del mar, generan granos con perfiles de sabor complejos que reflejan directamente las condiciones del ambiente donde creció la planta.
+
+El principio detrás de esto es relativamente sencillo: a mayor altitud, las temperaturas son más frescas y el fruto del café madura más lentamente. Esa maduración lenta le da tiempo al grano para acumular más azúcares, ácidos y compuestos aromáticos. Es lo mismo que ocurre con una fruta que madura al sol sobre el árbol —despacio y por completo— frente a una que se cosecha verde. El resultado en taza es un café con mayor complejidad, acidez viva y aroma pronunciado.
+
+Pero la altitud no lo explica todo. La cantidad de sol que recibe cada finca, la riqueza del suelo y la lluvia anual también moldean la composición química del grano. Comprender qué factores del ambiente pesan más, y cuánto, es el punto de partida para que los productores tomen mejores decisiones sobre dónde y cómo cultivar.
+
+### Problemática y objetivos
+
+Las diferencias en la calidad química entre lotes de café producidos en distintas fincas de la selva alta peruana pueden ser sustanciales. Sin embargo, no siempre está claro qué condiciones del ambiente son las responsables de esas diferencias, ni en qué medida contribuye cada una.
+
+El presente análisis busca responder esta pregunta a partir de datos reales de 199 lotes de café arábica, todos bajo las mismas condiciones de variedad y procesamiento, de modo que las diferencias observadas sean atribuibles únicamente al entorno de la finca.
+
+**Objetivo general:** Identificar qué variables ambientales explican de manera conjunta la variabilidad en la calidad química del café arábica de la selva alta peruana, mediante un modelo de regresión lineal multivariada.
+
+**Objetivos específicos:**
+
+- Detectar y resolver problemas de multicolinealidad entre las variables predictoras.
+- Verificar los supuestos estadísticos del modelo.
+- Identificar qué variables ambientales resultan estadísticamente significativas para explicar la calidad del café.
+- Cuantificar la capacidad explicativa y predictiva del modelo final.
+- Evaluar la estabilidad del modelo mediante validación cruzada.
+
+### Justificación del enfoque multivariado
+
+Las tres medidas de calidad química que se analizan —compuestos aromáticos (VOCs), acidez y sólidos disueltos (TDS)— no son independientes entre sí. Un lote con alto contenido aromático tiende también a presentar mayor acidez y mayor extractabilidad. Esto ocurre porque las tres propiedades son consecuencia de los mismos factores ambientales: suben y bajan juntas.
+
+Cuando las variables respuesta están correlacionadas de esta forma, analizarlas por separado en tres modelos independientes produce estimaciones menos eficientes e ignora la relación que existe entre ellas. El enfoque de regresión lineal multivariada permite modelarlas de forma simultánea, aprovechando esa correlación para obtener resultados más precisos y una visión más completa del fenómeno.
+
+Esta decisión no es solo de conveniencia estadística: la prueba de esfericidad de Bartlett, que se aplica más adelante, permite verificar formalmente que las variables respuesta están correlacionadas y que el enfoque conjunto está justificado.
+
+### Descripción del dataset y carga de datos
+
+El conjunto de datos contiene información de **199 lotes de café Coffea arabica**, cada uno proveniente de una finca diferente de la selva alta peruana. Para garantizar que las diferencias entre lotes reflejen únicamente el efecto del ambiente, todas las observaciones comparten las mismas condiciones fijas:
+
+- **Variedad:** Typica (la más extendida en el Perú).
+- **Método de procesamiento:** vía húmeda (lavado).
+- **Época de cosecha:** campaña principal (mayo–agosto).
+- **Estado del fruto:** recolectado en punto óptimo de madurez (fruto rojo).
+
+El dataset contiene ocho variables: cinco describen el ambiente de la finca y tres describen la calidad química del café producido, tal como se resume en la siguiente tabla.
+
+| Variable | Rol | Unidad | Rango |
+|---|---|---|---|
+| `altitud` | Predictora | msnm | 1 100 — 2 000 |
+| `temperatura` | Predictora | °C | 13.0 — 22.0 |
+| `precipitacion` | Predictora | mm/año | 1 000 — 2 500 |
+| `horas_sol` | Predictora | h/día | 3.0 — 8.0 |
+| `mat_organica` | Predictora | % | 2.00 — 9.00 |
+| `VOCs` | Respuesta | mg/kg | 80.00 — 239.65 |
+| `acidez` | Respuesta | g/L | 4.000 — 7.443 |
+| `TDS` | Respuesta | % | 1.056 — 1.541 |
+
+: Tabla 0. Descripción de las variables del dataset de café arábica.
+
+```{r}
+#| label: carga-datos
+#| message: false
+#| warning: false
+bd <- read.csv("p1_regre_cafe.csv")
+head(bd)
+dim(bd)
+```
+
+---
+
+## Marco teórico
+
+### Regresión lineal multivariada
+
+La regresión lineal multivariada es una extensión del modelo de regresión univariado que permite estimar simultáneamente varias variables respuesta a partir de un mismo conjunto de predictores. La idea central es que, en lugar de ajustar un modelo por separado para cada variable de interés, se construye un único modelo que las toma en cuenta todas al mismo tiempo, aprovechando las posibles relaciones entre ellas.
+
+La representación matricial del modelo es la siguiente:
+
+$$\mathbf{Y}_{n \times q} = \mathbf{X}_{n \times (p+1)} \, \mathbf{B}_{(p+1) \times q} + \mathbf{E}_{n \times q}$$
+
+donde $\mathbf{Y}$ es la matriz de variables respuesta con $n$ observaciones y $q$ variables dependientes; $\mathbf{X}$ es la matriz de diseño que incluye el término independiente y los $p$ predictores; $\mathbf{B}$ contiene los coeficientes a estimar (uno por cada combinación de predictor y respuesta); y $\mathbf{E}$ recoge los errores del modelo.
+
+En este caso, $n = 199$ lotes, $q = 3$ variables respuesta (VOCs, acidez y TDS), y $p$ predictores ambientales que se irán ajustando durante el análisis. Aldás y Uriel destacan que este planteamiento conjunto resulta más eficiente que estimar modelos separados cuando las respuestas están correlacionadas, porque los estimadores aprovechan esa estructura de correlación para ganar precisión. Irizarry, por su parte, enfatiza que la fortaleza del marco matricial radica en su generalidad: permite extender con naturalidad los resultados de la regresión simple al caso multivariado sin necesidad de cambiar la lógica de estimación.
+
+### Supuestos del modelo
+
+Para que los resultados del modelo sean válidos, deben cumplirse tres condiciones:
+
+**Normalidad multivariada.** Los errores del modelo deben seguir conjuntamente una distribución normal multivariada. Esto se verifica mediante la prueba de Shapiro-Wilk multivariada (Royston, 1992), que extiende al caso multidimensional la lógica de la prueba univariada clásica. Se rechaza el supuesto si el valor p es inferior a 0.05.
+
+**Homocedasticidad.** La varianza de los errores debe ser constante a lo largo de todos los valores de las variables predictoras, es decir, no debe depender de los propios predictores. Se evalúa mediante la prueba de Breusch-Pagan para cada variable respuesta por separado. Un valor p mayor a 0.05 indica que la varianza es constante.
+
+**Correlación entre respuestas (esfericidad de Bartlett).** Esta prueba verifica que la matriz de correlaciones entre las variables respuesta no es la matriz identidad, es decir, que las Y sí están correlacionadas entre sí. Si se rechaza la hipótesis nula (p < 0.05), queda formalmente justificado el uso del enfoque multivariado en lugar de modelos univariados independientes.
+
+### Multicolinealidad y el Factor de Inflación de la Varianza (VIF)
+
+La multicolinealidad ocurre cuando dos o más variables predictoras están fuertemente relacionadas entre sí. El problema que esto genera es que el modelo no puede distinguir bien el efecto de cada predictor por separado: los coeficientes se vuelven inestables, sus errores estándar se inflan y las inferencias estadísticas pierden confiabilidad.
+
+El diagnóstico estándar es el Factor de Inflación de la Varianza (VIF), que mide cuánto se infla la varianza del coeficiente de cada predictor debido a su correlación con los demás. Aldás y Uriel establecen los siguientes criterios de corte: valores menores a 5 indican ausencia de problema; entre 5 y 10 señalan colinealidad moderada que conviene vigilar; y valores iguales o superiores a 10 revelan colinealidad severa que distorsiona los coeficientes y justifica eliminar el predictor más redundante.
+
+Existe también una función llamada `alias()` en R, que detecta dependencias lineales exactas entre predictores: casos en los que una variable es combinación lineal perfecta de otras y sus coeficientes resultan completamente indeterminados. Sin embargo, esta función tiene un alcance limitado frente al VIF: solo capta redundancias exactas, pero no la colinealidad severa pero no perfecta que ocurre en la práctica. Por eso, aunque `alias()` sirve como primer filtro para descartar dependencias exactas, el diagnóstico definitivo de multicolinealidad debe apoyarse en el VIF.
+
+### Métricas de evaluación y validación cruzada
+
+Dos métricas permiten evaluar qué tan bien ajusta el modelo:
+
+El **R² ajustado** indica qué porcentaje de la variabilidad de cada variable respuesta es explicada por el modelo, con una corrección que penaliza la inclusión de predictores innecesarios. Se prefiere al R² estándar porque este último siempre aumenta al agregar más variables, independientemente de si realmente aportan información. Valores cercanos al 100% indican un ajuste muy bueno.
+
+El **MAPE** (Error Porcentual Absoluto Medio) expresa el error promedio de predicción como porcentaje del valor real. Es intuitivo porque habla directamente en los mismos términos que la variable: un MAPE de 5%, por ejemplo, significa que el modelo se equivoca en promedio en un 5% del valor real. Valores cercanos a 0 indican alta precisión predictiva.
+
+La **validación cruzada** es una técnica que permite evaluar si el modelo mantiene su capacidad predictiva sobre datos que no participaron en su construcción. En este análisis se usa un esquema 80/20: el modelo se entrena sobre el 80% de los datos y se evalúa sobre el 20% restante. Para obtener resultados robustos y no dependientes de una sola partición, este procedimiento se repite 100 veces con semillas aleatorias distintas generadas a partir de una semilla madre (2026), siguiendo el espíritu de los experimentos reproducibles descritos por Irizarry. Un modelo que generaliza bien es aquel cuyos indicadores en datos no vistos son similares —y estables— a los obtenidos sobre los datos de entrenamiento.
+
+---
+
+## Análisis Exploratorio de Datos (EDA)
+
+> Esta sección tiene carácter exploratorio. Su propósito es ofrecer una primera descripción de los datos y detectar patrones preliminares. Las conclusiones definitivas se establecen en el desarrollo del modelo.
+
+### Resumen estadístico
+
+```{r}
+#| label: descriptivos
+#| message: false
+#| warning: false
+kable(
+  describe(bd),
+  caption = "Tabla 1. Estadísticos descriptivos del conjunto de datos de café arábica",
+  align   = "c",
+  digits  = 3
+) |>
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE
+  ) |>
+  scroll_box(width = "100%")
+```
+
+Los 199 lotes presentan una variación considerable en altitud (1 100 a 2 000 msnm, media de 1 517 msnm), lo que refleja la diversidad topográfica de las zonas cafetaleras de la selva alta. La temperatura varía entre 13 y 22 °C, con un promedio de 17.5 °C, rango coherente con el gradiente térmico de la altitud. La precipitación, con una media de 1 608 mm/año y una desviación estándar de 332 mm, es más dispersa e independiente de la altitud.
+
+En cuanto a las variables de calidad, los VOCs presentan la mayor dispersión relativa (desviación estándar de 29.5 mg/kg sobre una media de 165.9 mg/kg). La acidez y el TDS muestran distribuciones más concentradas. Los coeficientes de asimetría y curtosis de todas las variables son cercanos a cero, lo que es una señal preliminar favorable hacia la normalidad de los datos.
+
+### Análisis de correlaciones
+
+```{r}
+#| label: ggpairs
+#| fig-width: 12
+#| fig-height: 10
+#| message: false
+#| warning: false
+ggpairs(bd,
+        title = "Café Arábica — Selva Alta del Perú: Correlaciones y Dispersión",
+        aes(alpha = 0.4))
+```
+
+El gráfico de correlaciones y dispersión revela dos patrones que guiarán el análisis posterior.
+
+El primero es la correlación negativa muy intensa entre altitud y temperatura (r ≈ −0.95): a medida que la altitud aumenta, la temperatura disminuye de manera casi perfectamente predecible. Esto es consistente con el gradiente térmico vertical de la selva alta peruana (aproximadamente −0.6 °C por cada 100 metros de ascenso) y anticipa un posible problema de multicolinealidad en el modelo.
+
+El segundo patrón es la correlación positiva fuerte de altitud con las tres variables respuesta (r ≈ 0.87–0.87 con VOCs y acidez, r ≈ 0.85 con TDS), que sugiere preliminarmente que la altitud es el predictor con mayor peso. Las tres respuestas también están fuertemente correlacionadas entre sí (VOCs–acidez: r ≈ 0.91; VOCs–TDS: r ≈ 0.89; acidez–TDS: r ≈ 0.90), lo que respalda el uso de un modelo conjunto.
+
+---
+
+## Modelo de Regresión Multivariado
+
+### Modelo completo y diagnóstico de multicolinealidad
+
+Como primer paso, se estima el modelo con las cinco variables ambientales disponibles como predictoras.
+
+```{r}
+#| label: modelo-completo
+#| message: false
+#| warning: false
+mod_completo <- lm(cbind(VOCs, acidez, TDS) ~
+                     altitud + temperatura + precipitacion +
+                     horas_sol + mat_organica,
+                   data = bd)
+```
+
+**Verificación de dependencias exactas con `alias()`**
+
+La función `alias()` examina si alguna variable es combinación lineal exacta de las demás, lo que haría imposible estimar su coeficiente. En este caso, la función no detecta ninguna dependencia exacta entre los predictores:
+
+```{r}
+#| label: alias
+alias(mod_completo)
+```
+
+El resultado es un modelo vacío en la sección de dependencias completas (`Complete`), lo que confirma que ningún predictor es redundancia perfecta de otro. Sin embargo, como se explicó en el marco teórico, la ausencia de dependencia exacta no descarta la presencia de multicolinealidad severa. Para eso se recurre al VIF.
+
+**Diagnóstico de multicolinealidad mediante VIF**
+
+```{r}
+#| label: vif-completo
+vif_completo <- vif(lm(VOCs ~ altitud + temperatura + precipitacion +
+                          horas_sol + mat_organica, data = bd))
+kable(
+  data.frame(Variable = names(vif_completo), VIF = round(vif_completo, 3)),
+  caption = "Tabla 2. VIF del modelo completo (5 predictores)",
+  align = "c"
+) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+Los resultados son contundentes: altitud y temperatura presentan VIF superiores a 10 (10.69 y 11.09, respectivamente), lo que indica colinealidad severa. Las tres variables restantes tienen VIF cercanos a 1, por lo que no representan ningún problema.
+
+La decisión es eliminar **temperatura**. Hay dos razones que respaldan esta elección. Desde el punto de vista estadístico, temperatura presenta el VIF más alto de los dos y es, por tanto, la variable más redundante. Desde el punto de vista científico, la temperatura de una finca de altura es una consecuencia directa de su altitud: el gradiente térmico vertical hace que la temperatura sea prácticamente predecible a partir de la altitud. Incluir ambas en el modelo sería como medir dos veces la misma cosa con escalas distintas.
+
+### Modelo reducido (4 predictores) y verificación de VIF
+
+```{r}
+#| label: modelo-4x
+mod_4x <- lm(cbind(VOCs, acidez, TDS) ~
+               altitud + precipitacion + horas_sol + mat_organica,
+             data = bd)
+
+vif_4x <- vif(lm(VOCs ~ altitud + precipitacion +
+                   horas_sol + mat_organica, data = bd))
+kable(
+  data.frame(Variable = names(vif_4x), VIF = round(vif_4x, 3)),
+  caption = "Tabla 3. VIF del modelo reducido (sin temperatura)",
+  align = "c"
+) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+Tras eliminar temperatura, todos los VIF caen por debajo de 1.1, muy lejos del umbral de 5. La multicolinealidad queda completamente resuelta y el modelo puede estimarse de forma confiable.
+
+### Evaluación de supuestos del modelo reducido (4 predictores)
+
+#### Normalidad multivariada
+
+Se aplica la prueba de Shapiro-Wilk multivariada sobre el vector de respuestas (VOCs, acidez, TDS).
+
+$$H_0: \text{Las variables respuesta siguen conjuntamente una distribución normal multivariada}$$
+$$H_a: \text{No siguen distribución normal multivariada}$$
+
+```{r}
+#| label: normalidad
+y_vars <- bd[, c("VOCs", "acidez", "TDS")]
+mshapiro.test(t(as.matrix(y_vars)))
+```
+
+Con un estadístico W = 0.9957 y un valor p = 0.848, no existe evidencia para rechazar la hipótesis nula. El supuesto de normalidad multivariada queda satisfecho.
+
+#### Homocedasticidad (prueba de Breusch-Pagan)
+
+Se verifica que la varianza de los errores sea constante para cada variable respuesta por separado.
+
+$$H_0: \text{La varianza de los errores es constante (homocedasticidad)}$$
+$$H_a: \text{La varianza no es constante (heterocedasticidad)}$$
+
+```{r}
+#| label: homoc-4x
+#| message: false
+bp_vocs   <- bptest(lm(VOCs   ~ altitud + precipitacion + horas_sol + mat_organica, data = bd))
+bp_acidez <- bptest(lm(acidez ~ altitud + precipitacion + horas_sol + mat_organica, data = bd))
+bp_tds    <- bptest(lm(TDS    ~ altitud + precipitacion + horas_sol + mat_organica, data = bd))
+
+kable(
+  data.frame(
+    Variable  = c("VOCs", "Acidez", "TDS"),
+    Estadístico_BP = round(c(bp_vocs$statistic, bp_acidez$statistic, bp_tds$statistic), 4),
+    `p-valor` = round(c(bp_vocs$p.value,     bp_acidez$p.value,     bp_tds$p.value),     4),
+    Conclusión = c("No se rechaza H₀", "No se rechaza H₀", "No se rechaza H₀")
+  ),
+  caption = "Tabla 4. Prueba de Breusch-Pagan por variable respuesta (modelo 4X)",
+  align = "c"
+) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+Los valores p son 0.9007 (VOCs), 0.136 (acidez) y 0.1843 (TDS), todos claramente superiores a 0.05. El supuesto de homocedasticidad se cumple en las tres variables respuesta.
+
+#### Prueba de esfericidad de Bartlett
+
+Esta prueba verifica formalmente que las tres variables respuesta están correlacionadas entre sí, lo que justifica modelarlas conjuntamente.
+
+$$H_0: \text{La matriz de correlación entre VOCs, acidez y TDS es la identidad (independientes)}$$
+$$H_a: \text{Las variables respuesta están correlacionadas}$$
+
+```{r}
+#| label: bartlett
+options(scipen = 0)
+cortest.bartlett(cor(y_vars), n = nrow(y_vars))
+```
+
+El resultado es χ² = 704.56 con valor p prácticamente nulo (≈ 2.16 × 10⁻¹⁵²). Se rechaza contundentemente la hipótesis nula: las tres variables respuesta están fuertemente correlacionadas entre sí. El enfoque de regresión multivariada queda plenamente justificado.
+
+### Hipótesis global del modelo reducido
+
+Se evalúa si el conjunto de predictores, tomado en bloque, tiene algún efecto significativo sobre las variables respuesta.
+
+$$H_0: \boldsymbol{\beta}_{\text{altitud}} = \boldsymbol{\beta}_{\text{precipitacion}} = \boldsymbol{\beta}_{\text{horas\_sol}} = \boldsymbol{\beta}_{\text{mat\_organica}} = \mathbf{0}$$
+
+$$H_1: \text{Al menos un } \boldsymbol{\beta}_j \neq \mathbf{0}$$
+
+```{r}
+#| label: hipotesis-global-4x
+ev_mod_4x <- linearHypothesis(mod_4x,
+                               hypothesis.matrix = c("altitud = 0",
+                                                     "precipitacion = 0",
+                                                     "horas_sol = 0",
+                                                     "mat_organica = 0"))
+ev_mod_4x
+```
+
+Los cuatro criterios multivariados clásicos (Pillai, Wilks, Hotelling-Lawley y Roy) entregan valores p menores a 2.22 × 10⁻¹⁶. Se rechaza la hipótesis nula en todos los casos. El modelo en su conjunto es estadísticamente significativo: al menos una variable ambiental influye sobre la calidad química del café.
+
+### Hipótesis individuales y selección final de variables
+
+A continuación se evalúa el efecto individual de cada predictor sobre el vector de respuestas. Para cada variable $X_j$:
+
+$$H_0: \beta_{j,\text{VOCs}} = \beta_{j,\text{acidez}} = \beta_{j,\text{TDS}} = 0 \quad \text{(el predictor no tiene efecto sobre ninguna respuesta)}$$
+$$H_1: \text{Al menos un } \beta_{j,k} \neq 0$$
+
+```{r}
+#| label: hipotesis-individuales
+#| message: false
+#| warning: false
+p_pillai    <- summary(manova(mod_4x), test = "Pillai")
+p_wilks     <- summary(manova(mod_4x), test = "Wilks")
+p_hotelling <- summary(manova(mod_4x), test = "Hotelling-Lawley")
+p_roy       <- summary(manova(mod_4x), test = "Roy")
+
+cat("── Pillai ──────────────────────────────────────────\n")
+print(p_pillai)
+cat("\n── Wilks ───────────────────────────────────────────\n")
+print(p_wilks)
+cat("\n── Hotelling-Lawley ────────────────────────────────\n")
+print(p_hotelling)
+cat("\n── Roy ─────────────────────────────────────────────\n")
+print(p_roy)
+```
+
+Los cuatro criterios son coincidentes: **altitud**, **horas_sol** y **mat_organica** resultan significativas con valores p menores a 2 × 10⁻¹⁶ en todos los criterios. **Precipitación**, en cambio, presenta un valor p de 0.1052 en los cuatro criterios, lo que indica que no tiene efecto estadísticamente distinguible sobre ninguna de las tres variables respuesta.
+
+La decisión es eliminar precipitación del modelo. Esto también tiene una interpretación de sentido: como se explicó en el contexto del dataset, las zonas cafetaleras de la selva alta peruana reciben lluvias dentro del rango adecuado para el cultivo. Cuando la variación de una variable se mantiene dentro de límites que no estresan la planta, su efecto sobre la calidad química es difuso y no alcanza a traducirse en diferencias detectables estadísticamente.
+
+Las tres variables que sí resultaron significativas tienen una justificación clara desde la ciencia del café:
+
+- **Altitud:** a mayor altura, las temperaturas más frescas ralentizan la maduración del fruto, lo que permite que el grano acumule más precursores de compuestos aromáticos, más ácidos orgánicos y más sólidos solubles.
+- **Horas de sol:** la radiación solar impulsa la fotosíntesis, que es el proceso que genera los azúcares y precursores aromáticos en el fruto. Más sol significa más "materia prima" química para el grano.
+- **Materia orgánica:** un suelo rico en materia orgánica nutre mejor la planta, retiene la humedad de forma uniforme y favorece un desarrollo radicular profundo. Todo ello se traduce en granos con mayor concentración de compuestos de calidad.
+
+### Modelo final (3 predictores) y verificación de supuestos
+
+```{r}
+#| label: modelo-final
+mod_final <- lm(cbind(VOCs, acidez, TDS) ~
+                  altitud + horas_sol + mat_organica,
+                data = bd)
+```
+
+**Normalidad multivariada (modelo final)**
+
+```{r}
+#| label: normalidad-final
+mshapiro.test(t(as.matrix(y_vars)))
+```
+
+W = 0.9957, p = 0.848. El supuesto de normalidad sigue satisfecho.
+
+**Homocedasticidad (modelo final)**
+
+```{r}
+#| label: homoc-final
+#| message: false
+bp_v <- bptest(lm(VOCs   ~ altitud + horas_sol + mat_organica, data = bd))
+bp_a <- bptest(lm(acidez ~ altitud + horas_sol + mat_organica, data = bd))
+bp_t <- bptest(lm(TDS    ~ altitud + horas_sol + mat_organica, data = bd))
+
+kable(
+  data.frame(
+    Variable  = c("VOCs", "Acidez", "TDS"),
+    Estadístico_BP = round(c(bp_v$statistic, bp_a$statistic, bp_t$statistic), 4),
+    `p-valor` = round(c(bp_v$p.value,     bp_a$p.value,     bp_t$p.value),     4),
+    Conclusión = c("No se rechaza H₀", "No se rechaza H₀", "No se rechaza H₀")
+  ),
+  caption = "Tabla 5. Prueba de Breusch-Pagan por variable respuesta (modelo final)",
+  align = "c"
+) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+Los valores p son 0.9274 (VOCs), 0.0929 (acidez) y 0.2711 (TDS). En los tres casos, la varianza de los errores es constante. Los supuestos del modelo final quedan plenamente satisfechos.
+
+**Hipótesis global — modelo final**
+
+```{r}
+#| label: hipotesis-global-final
+ev_mod_final <- linearHypothesis(mod_final,
+                                  hypothesis.matrix = c("altitud = 0",
+                                                        "horas_sol = 0",
+                                                        "mat_organica = 0"))
+ev_mod_final
+```
+
+```{r}
+#| label: manova-final
+print(summary(manova(mod_final), test = "Pillai"))
+```
+
+El modelo final es globalmente significativo. Los cuatro criterios multivariados confirman que el conjunto de tres predictores seleccionados tiene efecto conjunto sobre la calidad química del café (p < 2.22 × 10⁻¹⁶ en todos los criterios).
+
+---
+
+## Validación del resultado
+
+### Ajuste en muestra completa: MAPE y R² ajustado
+
+```{r}
+#| label: mape-funcion
+mape <- function(y_pred, y_real) {
+  if (any(y_real <= 0)) warning("Valores reales no positivos detectados")
+  mean(abs((y_pred - y_real) / y_real)) * 100
+}
+```
+
+```{r}
+#| label: ajuste-completo
+#| fig-width: 10
+#| fig-height: 5
+ajustados <- fitted(mod_final)
+
+mape_vocs   <- mape(ajustados[, "VOCs"],   bd$VOCs)
+mape_acidez <- mape(ajustados[, "acidez"], bd$acidez)
+mape_tds    <- mape(ajustados[, "TDS"],    bd$TDS)
+
+resultados  <- summary(mod_final)
+r2aj_vocs   <- resultados$`Response VOCs`$adj.r.squared   * 100
+r2aj_acidez <- resultados$`Response acidez`$adj.r.squared * 100
+r2aj_tds    <- resultados$`Response TDS`$adj.r.squared    * 100
+
+kable(
+  data.frame(
+    Variable  = c("VOCs", "Acidez", "TDS"),
+    MAPE_pct  = round(c(mape_vocs, mape_acidez, mape_tds), 3),
+    R2aj_pct  = round(c(r2aj_vocs, r2aj_acidez, r2aj_tds), 3)
+  ),
+  col.names = c("Variable respuesta", "MAPE (%)", "R² ajustado (%)"),
+  caption   = "Tabla 6. Métricas de ajuste sobre muestra completa (199 lotes)",
+  align     = "c"
+) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+```{r}
+#| label: graficos-metricas
+#| fig-width: 10
+#| fig-height: 4
+metricas <- data.frame(
+  Variable = c("VOCs", "Acidez", "TDS"),
+  MAPE     = c(mape_vocs, mape_acidez, mape_tds),
+  R2aj     = c(r2aj_vocs, r2aj_acidez, r2aj_tds)
+)
+
+p_mape <- ggplot(metricas, aes(x = Variable, y = MAPE, fill = Variable)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(round(MAPE, 2), " %")), vjust = -0.4, size = 4) +
+  scale_fill_manual(values = c("steelblue", "darkorange", "forestgreen")) +
+  labs(title = "MAPE por Variable Respuesta",
+       x = "Variable", y = "MAPE (%)") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none")
+
+p_r2 <- ggplot(metricas, aes(x = Variable, y = R2aj, fill = Variable)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(round(R2aj, 2), " %")), vjust = -0.4, size = 4) +
+  scale_fill_manual(values = c("steelblue", "darkorange", "forestgreen")) +
+  labs(title = "R² Ajustado por Variable Respuesta (%)",
+       x = "Variable", y = "R² ajustado (%)") +
+  ylim(0, 100) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none")
+
+grid.arrange(p_mape, p_r2, ncol = 2)
+```
+
+El modelo final ajusta de forma sólida sobre los 199 lotes con los que fue construido. El R² ajustado alcanza el 82.0% para VOCs, el 90.0% para acidez y el 85.7% para TDS: en los tres casos, la altitud, las horas de sol y la materia orgánica explican entre cuatro y cinco de cada cinco unidades de variabilidad observada. Los errores de predicción (MAPE) son del 6.07% para VOCs, 3.50% para acidez y 2.21% para TDS, lo que representa un nivel de aproximación razonable para las tres variables.
+
+### Validación cruzada (80/20, 100 semillas)
+
+Para verificar que el desempeño anterior no se debe a que el modelo simplemente "memorizó" los datos con los que fue entrenado, se realiza una validación cruzada. El procedimiento se repite 100 veces con distintas particiones aleatorias para obtener una imagen estable de la capacidad de generalización del modelo.
+
+```{r}
+#| label: validacion-cruzada
+set.seed(2026)
+semillas <- sample(1:10000000, size = 100)
+p_pred   <- 3
+tabla_cv <- data.frame()
+
+for (i in seq_along(semillas)) {
+  set.seed(semillas[i])
+  idx_train <- sample(seq_len(nrow(bd)), size = floor(0.80 * nrow(bd)))
+  train_cv  <- bd[ idx_train, ]
+  test_cv   <- bd[-idx_train, ]
+  n_test    <- nrow(test_cv)
+
+  mod_cv   <- lm(cbind(VOCs, acidez, TDS) ~
+                   altitud + horas_sol + mat_organica,
+                 data = train_cv)
+  preds_cv <- predict(mod_cv,
+                      newdata = test_cv[, c("altitud","horas_sol","mat_organica")])
+
+  mv <- mape(preds_cv[, "VOCs"],   test_cv$VOCs)
+  ma <- mape(preds_cv[, "acidez"], test_cv$acidez)
+  mt <- mape(preds_cv[, "TDS"],    test_cv$TDS)
+
+  r2aj_manual <- function(y_real, y_pred, n, p) {
+    ss_res <- sum((y_real - y_pred)^2)
+    ss_tot <- sum((y_real - mean(y_real))^2)
+    r2     <- 1 - ss_res / ss_tot
+    r2aj   <- 1 - (1 - r2) * (n - 1) / (n - p - 1)
+    return(r2aj * 100)
+  }
+
+  r2v <- r2aj_manual(test_cv$VOCs,   preds_cv[, "VOCs"],   n_test, p_pred)
+  r2a <- r2aj_manual(test_cv$acidez, preds_cv[, "acidez"], n_test, p_pred)
+  r2t <- r2aj_manual(test_cv$TDS,    preds_cv[, "TDS"],    n_test, p_pred)
+
+  tabla_cv <- rbind(tabla_cv, data.frame(
+    Semilla     = semillas[i],
+    R2aj_VOCs   = round(r2v, 3),
+    R2aj_Acidez = round(r2a, 3),
+    R2aj_TDS    = round(r2t, 3),
+    MAPE_VOCs   = round(mv,  3),
+    MAPE_Acidez = round(ma,  3),
+    MAPE_TDS    = round(mt,  3)
+  ))
+}
+```
+
+```{r}
+#| label: resumen-cv
+resumen_cv <- data.frame(
+  Métrica = c("MAPE VOCs (%)", "MAPE Acidez (%)", "MAPE TDS (%)",
+              "R²aj VOCs (%)", "R²aj Acidez (%)", "R²aj TDS (%)"),
+  Media   = round(c(mean(tabla_cv$MAPE_VOCs),   mean(tabla_cv$MAPE_Acidez),
+                    mean(tabla_cv$MAPE_TDS),
+                    mean(tabla_cv$R2aj_VOCs),    mean(tabla_cv$R2aj_Acidez),
+                    mean(tabla_cv$R2aj_TDS)), 3),
+  SD      = round(c(sd(tabla_cv$MAPE_VOCs),     sd(tabla_cv$MAPE_Acidez),
+                    sd(tabla_cv$MAPE_TDS),
+                    sd(tabla_cv$R2aj_VOCs),      sd(tabla_cv$R2aj_Acidez),
+                    sd(tabla_cv$R2aj_TDS)), 3),
+  Mínimo  = round(c(min(tabla_cv$MAPE_VOCs),    min(tabla_cv$MAPE_Acidez),
+                    min(tabla_cv$MAPE_TDS),
+                    min(tabla_cv$R2aj_VOCs),     min(tabla_cv$R2aj_Acidez),
+                    min(tabla_cv$R2aj_TDS)), 3),
+  Máximo  = round(c(max(tabla_cv$MAPE_VOCs),    max(tabla_cv$MAPE_Acidez),
+                    max(tabla_cv$MAPE_TDS),
+                    max(tabla_cv$R2aj_VOCs),     max(tabla_cv$R2aj_Acidez),
+                    max(tabla_cv$R2aj_TDS)), 3)
+)
+
+kable(
+  resumen_cv,
+  caption = "Tabla 7. Resumen de métricas en validación cruzada (100 particiones 80/20)",
+  align   = "c"
+) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+Los resultados de la validación cruzada son coherentes con los obtenidos sobre la muestra completa. En las 100 particiones, el R² ajustado promedio fue de 79.0% para VOCs, 88.1% para acidez y 82.5% para TDS, valores que se mantienen próximos a los obtenidos en el ajuste sobre los 199 lotes (82.0%, 90.0% y 85.7%, respectivamente). Las desviaciones estándar entre particiones son moderadas (5.2, 2.7 y 4.0 puntos porcentuales), lo que indica que los resultados no dependen de una partición particular. Los errores porcentuales promedio en datos no vistos (6.16% para VOCs, 3.62% para acidez y 2.30% para TDS) también son similares a los del ajuste en muestra completa, sin señales de sobreajuste.
+
+---
+
+## Cierre
+
+### Hallazgos principales
+
+El análisis comenzó con cinco variables ambientales como posibles explicadoras de la calidad química del café. A lo largo del proceso, el modelo fue depurándose en dos etapas: primero se eliminó la temperatura por su colinealidad severa con la altitud (VIF > 10), y luego se descartó la precipitación por no tener efecto estadísticamente distinguible sobre ninguna de las tres variables respuesta (p = 0.1052 en los cuatro criterios MANOVA).
+
+El modelo final, con tres predictores, cumple todos los supuestos estadísticos requeridos: normalidad multivariada (W = 0.9957, p = 0.848), homocedasticidad en las tres respuestas (p > 0.09 en todos los casos), y esfericidad de las respuestas (χ² = 704.56, p ≈ 0). Su significancia global está fuera de toda duda (p < 2.22 × 10⁻¹⁶ en todos los criterios).
+
+Las tres variables que permanecen en el modelo final son:
+
+- **Altitud:** el predictor con el efecto más fuerte. A mayor altitud, las temperaturas más bajas desaceleran la maduración del fruto y permiten una acumulación progresiva de compuestos de calidad.
+- **Horas de sol:** una variable que captura información ambiental que la altitud no puede explicar. Dos fincas a la misma altura pueden recibir cantidades muy distintas de radiación solar según la orientación de su ladera, y esa diferencia se refleja en la composición química del grano.
+- **Materia orgánica del suelo:** refleja la fertilidad del suelo y la historia de manejo de cada parcela. A diferencia de las variables climáticas, este factor está parcialmente bajo el control del productor, lo que lo convierte en una palanca de mejora accionable.
+
+La precipitación, dentro del rango observado en la selva alta peruana, no mostró efecto estadísticamente significativo sobre la calidad química. Esto es consistente con el hecho de que todas las fincas analizadas reciben lluvias dentro del rango adecuado para el cultivo de café arábica, por lo que su variación no alcanza a producir diferencias detectables en el laboratorio.
+
+### Conclusiones y recomendaciones
+
+El modelo de regresión lineal multivariada con altitud, horas de sol y materia orgánica como predictores explica entre el 82% y el 90% de la variabilidad química observada entre lotes, con errores de predicción que oscilan entre el 2.2% y el 6.1%. La validación cruzada confirma que estos resultados son estables y generalizables: el modelo mantiene un desempeño similar cuando se evalúa sobre datos que no participaron en su construcción, sin indicios de sobreajuste.
+
+Desde una perspectiva práctica, estos resultados sugieren que el perfil de calidad química de un lote de café arábica de la selva alta peruana no es azaroso: está determinado en gran medida por factores medibles y, en parte, manejables. La altitud de la finca establece las condiciones climáticas base, la exposición solar define cuánta energía fotosintética recibe el cultivo, y la riqueza del suelo determina con qué nutrientes cuenta la planta para desarrollar el grano. Conocer el peso de cada uno de estos factores es un insumo valioso para orientar la selección de parcelas y las prácticas de manejo de suelos en caficulturas que busquen un perfil de taza diferenciado.
+
+---
 
 # Pregunta 2
 
@@ -51,3 +647,7 @@ format:
 # Pregunta 4
 
 # Pregunta 5
+
+# Pregunta 6
+
+# Pregunta 7

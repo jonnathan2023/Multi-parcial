@@ -1,0 +1,310 @@
+---
+lang: es
+format:
+  html:
+    code-fold: true
+    code-summary: "Ver código R"
+    toc: true
+    toc-depth: 5
+    toc-location: left
+    toc-title: "Índice de Contenidos"
+    number-sections: true
+    theme:
+      light: journal
+      dark: darkly
+    highlight: tango
+    smooth-scroll: true
+    embed-resources: true
+    include-before-body:
+      text: |
+        <div style="text-align: center; padding: 60px 20px; font-family: 'Georgia', serif;">
+          <p style="font-size: 1.2em; font-weight: bold;">UNIVERSIDAD NACIONAL AGRARIA LA MOLINA</p>
+          <p style="font-weight: bold;">FACULTAD DE ECONOMÍA Y PLANIFICACIÓN</p>
+          <p style="font-weight: bold; margin-bottom: 30px;">DEPARTAMENTO ACADÉMICO DE ESTADÍSTICA E INFORMÁTICA</p>
+          <img src="logo.png" alt="Logo UNALM" style="max-width: 160px; margin: 15px 0;" />
+          <p style="font-weight: bold;">TÉCNICAS MULTIVARIADAS</p>
+          <p><strong>Docente:</strong> Miranda Villagomez, Clodomiro Fernando</p>
+          <p style="font-weight: bold; font-size: 1.4em;">EXAMEN PARCIAL</p>
+          <p><strong>Grupo:</strong> 1</p>
+          <table style="margin: 20px auto; border-collapse: collapse; width: 55%;">
+            <tr><th>Integrantes</th><th>Código</th></tr>
+            <tr><td>Meza Asto, Angel D.</td><td>20220810</td></tr>
+            <tr><td>Ormeño Sakihama, Daniel Kenyi</td><td>20240723</td></tr>
+            <tr><td>Ancco Guzman, Melany Alexandra</td><td>20230379</td></tr>
+            <tr><td>Pedraza Laboriano, Jonnathan</td><td>20231505</td></tr>
+            <tr><td>Fuentes Bueno, Fiorella</td><td>20230395</td></tr>
+            <tr><td>Garay Ramos, Jose Luis</td><td>20230678</td></tr>
+            <tr><td>Sobero Aguirre, Fiorella Romina</td><td>20091130</td></tr>
+          </table>
+          <p>LA MOLINA - LIMA - PERÚ</p>
+          <p>2026 - I</p>
+        </div>
+        <hr/>
+---
+
+<style>
+body { font-size: 15px; line-height: 1.7; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+h1 { font-size: 24px; color: #2C3E50; border-bottom: 2px solid #2C3E50; }
+h2 { font-size: 20px; color: #2980B9; }
+.nota {
+  font-size: 14px;
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f4f7f6;
+  border-left: 5px solid #2980B9;
+  border-radius: 4px;
+  font-style: italic;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, comment = NA)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(psych)
+library(corrplot)
+library(performance)
+library(GPArotation)
+```
+
+# Análisis Factorial Dicotómico
+## Introducción
+En el análisis de datos provenientes de encuestas de satisfacción o comportamiento del consumidor, es frecuente encontrarse con variables de naturaleza dicotómica (Sí/No, Presencia/Ausencia). El Análisis Factorial Dicotómico (AFD) surge como la herramienta estadística necesaria cuando el supuesto de continuidad de las variables observadas no se cumple.
+
+A diferencia del análisis factorial clásico que utiliza la correlación de Pearson, el AFD emplea la matriz de correlaciones tetracóricas. Este enfoque asume que detrás de cada respuesta binaria existe una propensión latente continua que sigue una distribución normal. En este estudio, aplicamos esta técnica para reducir la dimensionalidad de un conjunto de 10 indicadores sobre el comportamiento de usuarios en plataformas de E-Commerce en Perú.
+
+## Definición de Variables y Dimensiones Teóricas
+A continuación, se detalla el constructo evaluado, dividido en dos dimensiones latentes hipotéticas:
+
+| Dimensión Latente | Ítem | Descripción de la Variable (1 = Sí, 0 = No) |
+|:---|:---:|:---|
+| **F1: Seguridad y Prevención** | P1 | Verifica que la página cuente con certificado HTTPS. |
+| **F1: Seguridad y Prevención** | P2 | Evita guardar activamente los datos de su tarjeta en la web. |
+| **F1: Seguridad y Prevención** | P3 | Lee exhaustivamente las políticas de devoluciones. |
+| **F1: Seguridad y Prevención** | P4 | Utiliza pasarelas intermedias de pago (ej. PayPal, Apple Pay). |
+| **F1: Seguridad y Prevención** | P5 | Evita realizar transacciones financieras en redes Wi-Fi públicas. |
+| **F2: Hábitos de Consumo Digital** | P6 | Realiza compras por internet al menos una vez al mes. |
+| **F2: Hábitos de Consumo Digital** | P7 | Prefiere utilizar las Apps oficiales de las tiendas sobre la web. |
+| **F2: Hábitos de Consumo Digital** | P8 | Está suscrito a newsletters para recibir alertas de ofertas. |
+| **F2: Hábitos de Consumo Digital** | P9 | Suele dejar reseñas o valoraciones de los productos adquiridos. |
+| **F2: Hábitos de Consumo Digital** | P10 | Planifica sus compras para coincidir con días de descuento (Cyber). |
+
+## Objetivos
+
+1. Validar la estructura factorial de la encuesta mediante el uso de matrices tetracóricas.  
+
+2. Identificar las cargas factoriales bajo el método de extracción de Mínimos Cuadrados Ponderados (WLS).  
+
+3. Comparar la interpretabilidad del modelo mediante rotaciones ortogonales (Varimax).  
+
+4. Determinar el nivel de adecuación de la muestra para el análisis de reducción de datos.
+
+## Carga y Preparación de los Datos
+Se procede con la lectura del archivo de datos para el presente estudio. La muestra consta de $n = 400$ observaciones.
+
+```{r}
+# Importación del archivo de datos
+test <- read.csv("Datos_ECommerce.csv")
+
+kable(head(test, 10), caption = "Visualización de los primeros registros del dataset") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+***
+
+## Verificación de Supuestos
+### Análisis de Medias y "Factores de Dificultad"
+Antes de la extracción, verificamos que las proporciones de respuesta no sean extremas para evitar sesgos de agrupación por frecuencia.
+```{r}
+prop_resp <- colMeans(test)
+kable(t(round(prop_resp, 3)), caption = "Proporción de Respuestas Afirmativas") %>% kable_styling()
+```
+::: {.nota}
+Interpretación Teórica (Aldás & Uriel): Las medias se sitúan cerca de 0.50 (rango 0.46 - 0.53). Esto garantiza que no existen "factores de dificultad", permitiendo que la agrupación factorial se deba estrictamente al contenido de las variables y no a la probabilidad de respuesta.
+:::
+
+### Matriz de Correlaciones Tetracóricas
+Calculamos la matriz de asociación adecuada para el tratamiento de datos binarios, dado que una correlación clásica de Pearson subestimaría las relaciones.
+```{r}
+# Cálculo de matriz tetracórica
+r.tetra = tetrachoric(test)
+R = r.tetra$rho    
+
+# Visualización de la matriz
+corrplot(R, method = "color", type = "upper", addCoef.col = "black", 
+         number.cex = 0.7, tl.col = "black", title = "Matriz Tetracórica de E-Commerce", mar=c(0,0,1,0))
+```
+::: {.nota}
+**Interpretación de la Matriz:**
+El uso de la matriz tetracórica revela fuertes agrupaciones internas. Los ítems de Seguridad (P1-P5) muestran correlaciones positivas moderadas/altas entre sí, al igual que los ítems de Hábitos (P6-P10). Asimismo, la correlación cruzada entre ambos bloques es cercana a cero, anticipando la existencia de dos factores latentes ortogonales.
+:::
+
+***
+
+### Pruebas de Factorabilidad
+Evaluamos si la estructura de correlaciones permite la reducción de datos mediante la Prueba de Bartlett y el Índice KMO.
+
+```{r}
+# Ejecución de pruebas
+n_obs <- nrow(test)
+bartlett <- cortest.bartlett(R, n = n_obs)
+kmo_res <- KMO(R)
+
+# Comprobación de estructura según performance
+check_factorstructure(R, n = n_obs)
+```
+::: {.nota}
+**Interpretación de Supuestos (Factorabilidad):**
+La prueba de esfericidad de Bartlett es altamente significativa ($p < 0.001$), rechazando tajantemente que las variables sean independientes (matriz identidad). Complementariamente, el Índice KMO global es de 0.79, considerado como una adecuación muestral Notable. Esto nos da luz verde estadística para proceder con la extracción de factores.
+:::
+
+***
+
+## Determinación del Número de Factores
+Utilizamos el Análisis Paralelo, la técnica más robusta, para identificar los autovalores que superan la varianza atribuible puramente al azar.
+
+```{r}
+fap <- fa.parallel(R, n.obs = n_obs, fa = "fa", fm = "wls", 
+                   main = "Análisis Paralelo para E-Commerce")
+```
+::: {.nota}
+**Interpretación del Análisis Paralelo:**
+El gráfico sugiere la retención exacta de 2 factores. Esto valida matemáticamente la hipótesis teórica de nuestro instrumento (Seguridad vs. Hábitos) y nos evita el problema de sobre-extracción que suele ocurrir al usar métodos antiguos como el criterio de Kaiser.
+:::
+
+***
+
+## Modelamiento del Análisis Factorial: 
+Se utiliza el método de Mínimos Cuadrados Ponderados (WLS), el cual es ideal para datos categóricos. Para demostrar la necesidad de la rotación, primero ajustaremos un modelo base sin rotar y luego aplicaremos la rotación ortogonal **Varimax** en búsqueda de la "Estructura Simple".
+
+```{r, fig.width=12, fig.height=6}
+# 1. Ajuste del modelo SIN rotar
+factorial_sin_rotar = fa(test, nfactors = 2, n.obs = n_obs, rotate = "none", fm = "wls", cor = "tet")
+
+# 2. Ajuste del modelo CON rotación Varimax
+factorial_final = fa(test, nfactors = 2, n.obs = n_obs, rotate = "varimax", fm = "wls", cor = "tet")
+
+# Configurar el panel para mostrar 2 gráficos lado a lado
+par(mfrow = c(1, 2))
+
+# Diagrama 1: Sin Rotación
+fa.diagram(factorial_sin_rotar, e.size = .05, rsize = 3.5, digits = 2, 
+           col = "red", main = "1. Modelo Sin Rotación")
+
+# Diagrama 2: Rotación Varimax
+fa.diagram(factorial_final, e.size = .05, rsize = 3.5, digits = 2, 
+           col = "blue", main = "2. Rotación Varimax")
+
+# Restaurar el panel original
+par(mfrow = c(1, 1))
+```
+::: {.nota}
+**Justificación de la Rotación:**
+Al observar el Modelo Sin Rotación (izquierdo), se evidencia complejidad factorial; los ítems tienen cargas repartidas o menos precisas. Al aplicar la Rotación Varimax (derecho), se logra una rotación ortogonal de los ejes que maximiza la varianza de las cargas. El resultado es una Estructura Simple perfecta, donde cada ítem carga fuertemente en una sola dimensión, separando nítidamente los Hábitos de la Seguridad y facilitando su interpretación.
+:::
+
+***
+
+## Resultados y Clasificación
+Se desglosan las cargas factoriales finales asignando cada variable a la dimensión correspondiente donde maximiza su peso.
+
+```{r}
+# Preparación de tablas de cargas
+dat = data.frame(ifelse(abs(factorial_final$loadings) == apply(abs(factorial_final$loadings), 1, max), 
+                        apply(abs(factorial_final$loadings), 1, max), NA))
+dat1 = data.frame(Item = rownames(dat), dat)
+fact = gather(dat1, Factor, cargas, -Item) %>% drop_na()
+Cargas = split(fact, fact$Factor)
+
+# Renderizado de tablas
+kable(Cargas$WLS1, digits = 3, caption = "Dimensión 1: Hábitos de Consumo Digital") %>% kable_styling(full_width = F)
+kable(Cargas$WLS2, digits = 3, caption = "Dimensión 2: Seguridad y Prevención") %>% kable_styling(full_width = F)
+```
+::: {.nota}
+**Interpretación de Cargas Factoriales:**
+La estructura simple es evidente, ya que ninguna variable presenta cargas cruzadas altas (complejidad cercana a 1).
+El Factor 1 está fuertemente definido por la variable P10 (Planificar para Cyber Days, carga: 0.80) y P7 (Uso de Apps), mostrando madurez comercial digital.
+El Factor 2 está dominado por P2 (No guardar datos de tarjeta, carga: 0.73) y P5 (Evitar Wi-Fi pública), reflejando un comportamiento defensivo y cauteloso en internet.
+:::
+
+***
+## Análisis de Comunalidades ($h^2$)
+La comunalidad indica la proporción de la varianza de cada ítem que logra ser explicada por los dos factores retenidos en el modelo.
+
+```{r}
+# Extracción de comunalidades del modelo rotado
+comunalidades <- data.frame(
+  Item = names(factorial_final$communality),
+  Comunalidad = factorial_final$communality
+)
+
+kable(comunalidades, digits = 3, caption = "Comunalidades de los Ítems (h²)", row.names = FALSE) %>% 
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+::: {.nota}
+Interpretación de Comunalidades:
+Según el criterio de Aldás y Uriel, se observa que todas las comunalidades de los ítems superan el umbral mínimo aceptable de 0.30. Esto demuestra que ninguna variable sobra en el instrumento, siendo los ítems P10 y P8 los mejor representados por el modelo dimensional extraído.
+:::
+
+***
+## Evaluación de la Calidad y Fiabilidad del Modelo
+Para validar que el modelo representa adecuadamente a la población, evaluamos la bondad de ajuste y calculamos la consistencia interna mediante el Coeficiente Omega, el cual no se ve afectado por la atenuación típica del Alfa de Cronbach en datos dicotómicos.
+```{r}
+# Índices de Bondad de Ajuste
+fit_indices <- data.frame(
+  RMSR = factorial_final$rms,
+  TLI = factorial_final$TLI,
+  RMSEA = factorial_final$RMSEA[1],
+  Varianza_Acumulada = sum(factorial_final$Vaccounted[2,])
+)
+
+kable(fit_indices, digits = 3, caption = "Índices de Bondad de Ajuste del Modelo") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+# Fiabilidad Omega Total (matriz tetracórica)
+omega_res <- omega(R, nfactors = 2, fm = "wls", plot = FALSE, n.iter = 1)
+cat("Fiabilidad Omega Total del Instrumento:", round(omega_res$omega.tot, 3), "\n")
+```
+
+::: {.nota}
+**Conclusión de Calidad del Modelo:**
+El análisis multivariante demuestra una alta solvencia estadística. El índice TLI de 0.92 supera ampliamente el umbral crítico de aceptación de 0.90, y el RMSR (0.035) indica que los residuos del modelo son mínimos. Asimismo, la Fiabilidad Omega de 0.817 certifica que el constructo de evaluación de E-Commerce es un instrumento sumamente consistente y confiable.
+:::
+
+***
+
+## Gráficos de Dispersión
+Visualización de las coordenadas en el plano cartesiano generado por las dos dimensiones latentes extraídas.
+```{r}
+# Gráfico 2D usando factor.plot para evitar problemas de solapamiento de argumentos
+factor.plot(factorial_final, labels = rownames(factorial_final$loadings), 
+            main = "Dispersión de Ítems en el Espacio Factorial (2D)", pos = 3)
+abline(h = 0, v = 0, lty = 2, col = "gray")
+```
+::: {.nota}
+**Interpretación del Gráfico de Dispersión Factorial (Datos Dicotómicos):**
+
+- El gráfico representa la posición de los ítems binarios (0 = No, 1 = Sí) en el espacio factorial definido por las dos dimensiones latentes extraídas a partir de la **matriz de correlaciones tetracóricas** y estimadas mediante **Mínimos Cuadrados Ponderados (WLS)**. En este contexto, cada coordenada refleja la asociación de cada variable dicotómica con los factores comunes subyacentes, suponiendo una propensión latente continua detrás de cada respuesta observada.
+
+- Se distingue una separación nítida en dos conjuntos de variables. Por un lado, los ítems **P1, P2, P3, P4 y P5** se ubican principalmente en valores elevados del eje vertical (**WLS2**), mostrando una fuerte relación con el segundo factor. Esta agrupación confirma la existencia de una dimensión asociada a **Seguridad y Prevención**, integrada por conductas orientadas al resguardo de información financiera y uso seguro de plataformas digitales.
+
+- Por otro lado, los ítems **P6, P7, P8, P9 y P10** presentan coordenadas altas sobre el eje horizontal (**WLS1**) y cercanas a cero en el eje vertical, indicando mayor saturación en el primer factor. Este patrón respalda la dimensión **Hábitos de Consumo Digital**, vinculada con frecuencia de compra, uso de aplicaciones oficiales, reseñas y aprovechamiento de campañas promocionales.
+
+- De acuerdo con Aldás y Uriel, la proximidad entre ítems dentro del plano factorial sugiere similitud estructural, mientras que la distancia respecto al origen indica mayor capacidad explicativa dentro de cada dimensión. En consecuencia, variables como **P10** y **P5** destacan como indicadores representativos de sus respectivos factores.
+
+- En síntesis, el gráfico evidencia una **estructura factorial simple y estable**, sin superposición relevante entre dimensiones, lo cual confirma que los ítems dicotómicos analizados se organizan coherentemente en **dos constructos latentes diferenciados**, consistentes con el planteamiento teórico inicial del instrumento.
+::: 
+
+## Conclusiones y Recomendaciones
+
+1. **Conclusión Estadística:** Se validaron dos dimensiones latentes ortogonales que explican el comportamiento del consumidor digital peruano con alta precisión.
+
+2. **Hallazgo Principal:** El ítem P10 (Planificación de Cyber Days) es el mayor predictor de los hábitos, mientras que P2 (Seguridad de Tarjeta) lidera la cultura de prevención.
+
+3. **Recomendación Estratégica:** Las empresas de E-commerce deben reforzar la comunicación de protocolos de seguridad (HTTPS y Pasarelas) durante campañas masivas de descuentos, ya que el usuario peruano presenta una dimensión de "Cultura Defensiva" muy marcada que influye en su decisión de compra.
+
+# Bibliografía
+- Aldás, J., & Uriel, E. (2017). Análisis multivariante aplicado con R. 2da Edición. Madrid: Ediciones Paraninfo.
+
+- Revelle, W. (2024). psych: Procedures for Psychological, Psychometric, and Personality Research. R package.

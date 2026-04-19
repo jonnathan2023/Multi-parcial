@@ -1,0 +1,275 @@
+---
+title: "Análisis Factorial Ordinal"
+subtitle: "Satisfacción Laboral — Datos Simulados"
+author: "Psicometría con R"
+date: today
+lang: es
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-title: "Contenido"
+    toc-location: left
+    number-sections: true
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    code-line-numbers: true
+    highlight-style: github
+    self-contained: true
+    fig-width: 8
+    fig-height: 5
+    fig-dpi: 150
+    df-print: kable
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: false
+---
+
+## Descripción del caso
+
+Este documento presenta la simulación y análisis de datos de **satisfacción laboral** usando **Análisis Factorial Ordinal (AFO)**. Se generan 200 observaciones con una estructura factorial conocida de 3 factores en escala Likert de 5 puntos.
+
+::: {.callout-note}
+## Diseño del estudio
+- **Instrumento:** Encuesta de satisfacción laboral (15 ítems)
+- **Escala:** Likert 1–5 (1 = Muy en desacuerdo, 5 = Muy de acuerdo)
+- **Muestra:** 200 trabajadores de una empresa de servicios
+- **Estructura teórica:** 3 factores latentes, 5 ítems por factor
+:::
+
+### Factores latentes
+
+| Factor | Nombre | Ítems |
+|:------:|--------|-------|
+| F1 | Clima organizacional | item1 – item5 |
+| F2 | Desarrollo profesional | item6 – item10 |
+| F3 | Bienestar y compensación | item11 – item15 |
+
+---
+
+## Librerías necesarias
+
+```{r}
+#| label: librerias
+
+# install.packages(c("psych", "polycor", "GPArotation",
+#                    "lavaan", "semPlot", "MVN"))
+
+library(psych)       # Funciones factoriales y psicométricas
+#library(polycor)    # Correlaciones policóricas
+library(GPArotation) # Rotaciones factoriales
+library(lavaan)      # Modelos de ecuaciones estructurales
+#library(semPlot)    # Diagramas de paths
+library(MVN)         # Normalidad multivariante
+```
+
+---
+
+## Generación de datos ordinales simulados
+
+### Parámetros poblacionales
+
+La simulación parte de parámetros poblacionales conocidos: la **matriz de correlaciones entre factores** (Φ) y la **matriz de cargas factoriales** (Λ).
+
+#### Matriz Φ — correlaciones entre factores
+
+Los factores están moderadamente correlacionados, lo que justifica el uso de **rotación oblicua (oblimin)** en lugar de ortogonal.
+
+```{r}
+#| label: matriz-phi
+
+set.seed(2024)
+n <- 200  # tamaño muestral
+
+# Definir 3 factores latentes correlacionados
+Phi <- matrix(c(
+  1.00, 0.45, 0.30,
+  0.45, 1.00, 0.35,
+  0.30, 0.35, 1.00
+), nrow = 3)
+
+rownames(Phi) <- colnames(Phi) <- c("F1 Clima", "F2 Desarrollo", "F3 Bienestar")
+Phi
+```
+
+#### Matriz Λ — cargas factoriales
+
+Cada fila es un ítem y cada columna un factor. La estructura es **simple**: cada ítem carga fuertemente en un solo factor y tiene cargas cruzadas mínimas.
+
+```{r}
+#| label: matriz-lambda
+
+# Cargas factoriales (cada factor → 5 ítems)
+Lambda <- matrix(c(
+  # F1   F2   F3
+  0.75, 0.10, 0.05,  # item1
+  0.80, 0.08, 0.10,  # item2
+  0.70, 0.12, 0.08,  # item3
+  0.72, 0.06, 0.12,  # item4
+  0.68, 0.15, 0.05,  # item5
+  0.08, 0.78, 0.10,  # item6
+  0.10, 0.82, 0.08,  # item7
+  0.12, 0.75, 0.06,  # item8
+  0.05, 0.70, 0.12,  # item9
+  0.09, 0.68, 0.15,  # item10
+  0.06, 0.08, 0.80,  # item11
+  0.10, 0.10, 0.76,  # item12
+  0.12, 0.06, 0.72,  # item13
+  0.05, 0.12, 0.70,  # item14
+  0.08, 0.09, 0.74   # item15
+), nrow = 15, byrow = TRUE)
+
+rownames(Lambda) <- paste0("item", 1:15)
+colnames(Lambda) <- c("F1 Clima", "F2 Desarrollo", "F3 Bienestar")
+Lambda
+```
+
+### Construcción de la matriz de covarianza
+
+La covarianza poblacional sigue la **fórmula del modelo factorial**:
+
+$$\Sigma = \Lambda \Phi \Lambda^T + \Psi$$
+
+donde $\Psi = \text{diag}(1 - \text{rowSums}(\Lambda^2))$ es la matriz de **unicidades** (varianza no explicada por los factores comunes).
+
+```{r}
+#| label: sigma
+
+# Generar datos continuos latentes
+Sigma <- Lambda %*% Phi %*% t(Lambda) +
+  diag(1 - rowSums(Lambda^2))
+
+datos_cont <- MASS::mvrnorm(n, mu = rep(0, 15), Sigma = Sigma)
+```
+
+### Discretización a escala Likert 1–5
+
+Los datos continuos se convierten en ordinales mediante umbrales de corte. Los umbrales **no son equidistantes** para generar una distribución ligeramente asimétrica, más realista que una distribución uniforme.
+
+| Rango continuo | Categoría Likert |
+|:--------------:|:----------------:|
+| x < −1.2 | 1 — Muy en desacuerdo |
+| −1.2 ≤ x < −0.4 | 2 |
+| −0.4 ≤ x < 0.4 | 3 — Neutro |
+| 0.4 ≤ x < 1.2 | 4 |
+| x ≥ 1.2 | 5 — Muy de acuerdo |
+
+```{r}
+#| label: discretizar
+
+# Discretizar a escala Likert 1-5 (umbrales ligeramente asimétricos)
+umbrales <- c(-1.2, -0.4, 0.4, 1.2)
+
+datos_ord <- apply(datos_cont, 2, function(x) {
+  cut(x, breaks = c(-Inf, umbrales, Inf), labels = 1:5) |>
+    as.integer()
+})
+
+colnames(datos_ord) <- paste0("item", 1:15)
+datos_ord <- as.data.frame(datos_ord)
+```
+
+---
+
+## Vista previa de los datos
+
+### Primeras 5 observaciones
+
+```{r}
+#| label: head
+
+head(datos_ord, 5)
+```
+
+### Estadísticos descriptivos
+
+```{r}
+#| label: summary
+
+summary(datos_ord)
+```
+
+### Distribución de respuestas por ítem
+
+```{r}
+#| label: distribucion
+#| fig-cap: "Distribución de frecuencias por ítem (escala Likert 1–5)"
+
+# Convertir a formato largo para visualización
+datos_long <- stack(datos_ord)
+colnames(datos_long) <- c("respuesta", "item")
+
+# Frecuencias por ítem y categoría
+freq_tab <- as.data.frame(table(datos_long$item, datos_long$respuesta))
+colnames(freq_tab) <- c("item", "respuesta", "frecuencia")
+
+# Gráfico de barras apiladas
+barplot(
+  t(matrix(freq_tab$frecuencia, nrow = 15, ncol = 5,
+           dimnames = list(paste0("item", 1:15), 1:5))),
+  beside   = FALSE,
+  col      = c("#3b4fd4", "#6c8ef5", "#a8b8ff", "#d4dcff", "#eef1ff"),
+  legend   = paste("Categoría", 1:5),
+  args.legend = list(x = "topright", bty = "n", cex = 0.75),
+  las      = 2,
+  cex.names = 0.75,
+  ylab     = "Frecuencia",
+  main     = "Distribución de respuestas por ítem"
+)
+```
+
+::: {.callout-tip}
+## Interpretación
+La distribución de respuestas es aproximadamente simétrica alrededor del valor 3, con ligera asimetría producida por los umbrales de discretización asimétricos (`c(-1.2, -0.4, 0.4, 1.2)`). Esto es consistente con lo esperado en encuestas reales de satisfacción laboral.
+:::
+
+---
+
+## Notas metodológicas
+
+::: {.callout-important}
+## ¿Por qué Análisis Factorial *Ordinal*?
+
+Cuando los datos provienen de escalas Likert, tratar los valores 1–5 como continuos es técnicamente incorrecto porque:
+
+1. **Viola la normalidad multivariante** requerida por el estimador ML clásico.
+2. **Subestima las cargas factoriales** al ignorar la naturaleza discreta de los datos.
+3. La distancia entre categorías (1→2 vs. 4→5) **no es necesariamente igual**.
+
+La solución es usar **correlaciones policóricas** (en lugar de Pearson) y el estimador **WLSMV** (*Weighted Least Squares Mean and Variance adjusted*), que es el estándar actual para AFO.
+:::
+
+### Flujo de análisis recomendado
+
+```
+Datos ordinales
+      ↓
+Correlaciones policóricas  ← psych::polychoric()
+      ↓
+Verificar supuestos        ← Bartlett + KMO
+      ↓
+Determinar # factores      ← Análisis paralelo + Scree plot
+      ↓
+AFO exploratorio           ← psych::fa(..., fm="wls", cor="poly")
+      ↓
+AFC confirmatorio          ← lavaan::cfa(..., estimator="WLSMV", ordered=TRUE)
+      ↓
+Evaluar ajuste             ← CFI, TLI, RMSEA, SRMR, WRMR
+      ↓
+Confiabilidad ordinal      ← Omega de McDonald (no alfa de Cronbach)
+```
+
+---
+
+## Información de sesión
+
+```{r}
+#| label: session-info
+#| code-fold: true
+
+sessionInfo()
+```

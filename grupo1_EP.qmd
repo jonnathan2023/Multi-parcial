@@ -64,7 +64,9 @@ El café arábica producido en la selva alta del Perú ocupa un lugar destacado 
 
 El principio detrás de esto es relativamente sencillo: a mayor altitud, las temperaturas son más frescas y el fruto del café madura más lentamente. Esa maduración lenta le da tiempo al grano para acumular más azúcares, ácidos y compuestos aromáticos. Es lo mismo que ocurre con una fruta que madura al sol sobre el árbol —despacio y por completo— frente a una que se cosecha verde. El resultado en taza es un café con mayor complejidad, acidez viva y aroma pronunciado.
 
-Pero la altitud no lo explica todo. La cantidad de sol que recibe cada finca, la riqueza del suelo y la lluvia anual también moldean la composición química del grano. Comprender qué factores del ambiente pesan más, y cuánto, es el punto de partida para que los productores tomen mejores decisiones sobre dónde y cómo cultivar.
+Las condiciones ambientales que determinan este perfil de calidad son diversas. La **altitud** regula la temperatura de manera predecible: a mayor altura, el frío modera la maduración del fruto. La **temperatura media anual** actúa como una expresión directa de ese efecto altitudinal sobre el cultivo. La **precipitación** —la cantidad de lluvia anual— garantiza el agua que necesita la planta a lo largo del año; demasiada o muy poca puede comprometer el desarrollo del grano. Las **horas de sol diario** determinan cuánta energía recibe la planta para producir azúcares y compuestos aromáticos mediante la fotosíntesis, y varían incluso entre fincas a la misma altitud según la orientación de la ladera. Por último, la **materia orgánica del suelo** refleja la fertilidad del terreno: un suelo rico en material descompuesto nutre mejor la planta y favorece el desarrollo de un grano más complejo. Estas cinco variables ambientales constituyen las candidatas a explicar por qué unos lotes de café resultan químicamente superiores a otros.
+
+La calidad del grano, a su vez, se mide en el laboratorio a través de tres propiedades: la concentración de compuestos aromáticos volátiles (VOCs), la acidez titulable y los sólidos disueltos totales (TDS). Estas tres medidas capturan, respectivamente, la riqueza aromática, la vivacidad en taza y la intensidad de sabor del café. Comprender cuáles condiciones del ambiente las determinan, y en qué medida contribuye cada una, es el punto de partida para que los productores tomen mejores decisiones sobre dónde y cómo cultivar.
 
 ### Problemática y objetivos
 
@@ -137,13 +139,13 @@ $$\mathbf{Y}_{n \times q} = \mathbf{X}_{n \times (p+1)} \, \mathbf{B}_{(p+1) \ti
 
 donde $\mathbf{Y}$ es la matriz de variables respuesta con $n$ observaciones y $q$ variables dependientes; $\mathbf{X}$ es la matriz de diseño que incluye el término independiente y los $p$ predictores; $\mathbf{B}$ contiene los coeficientes a estimar (uno por cada combinación de predictor y respuesta); y $\mathbf{E}$ recoge los errores del modelo.
 
-En este caso, $n = 199$ lotes, $q = 3$ variables respuesta (VOCs, acidez y TDS), y $p$ predictores ambientales que se irán ajustando durante el análisis. Aldás y Uriel destacan que este planteamiento conjunto resulta más eficiente que estimar modelos separados cuando las respuestas están correlacionadas, porque los estimadores aprovechan esa estructura de correlación para ganar precisión. Irizarry, por su parte, enfatiza que la fortaleza del marco matricial radica en su generalidad: permite extender con naturalidad los resultados de la regresión simple al caso multivariado sin necesidad de cambiar la lógica de estimación.
+En este caso, $n = 199$ lotes, $q = 3$ variables respuesta (VOCs, acidez y TDS), y $p$ predictores ambientales que se irán ajustando durante el análisis. Aldás y Uriel, en su obra *Análisis Multivariante Aplicado con R*, destacan que este planteamiento conjunto resulta más eficiente que estimar modelos separados cuando las respuestas están correlacionadas, porque los estimadores aprovechan esa estructura de correlación para ganar precisión. Irizarry, en *Introduction to Data Science*, enfatiza que la fortaleza del marco matricial radica en su generalidad: permite extender con naturalidad los resultados de la regresión simple al caso multivariado sin necesidad de cambiar la lógica de estimación.
 
 ### Supuestos del modelo
 
 Para que los resultados del modelo sean válidos, deben cumplirse tres condiciones:
 
-**Normalidad multivariada.** Los errores del modelo deben seguir conjuntamente una distribución normal multivariada. Esto se verifica mediante la prueba de Shapiro-Wilk multivariada (Royston, 1992), que extiende al caso multidimensional la lógica de la prueba univariada clásica. Se rechaza el supuesto si el valor p es inferior a 0.05.
+**Normalidad multivariada.** Los errores del modelo deben seguir conjuntamente una distribución normal multivariada. En la práctica este supuesto puede evaluarse de dos formas equivalentes: directamente sobre los vectores de error estimados de cada observación, o bien sobre las propias variables respuesta cuando el diseño es balanceado y los predictores son fijos, ya que en ese caso ambas evaluaciones arrojan el mismo resultado. Se verifica mediante la prueba de Shapiro-Wilk multivariada (Royston, 1992), que extiende al caso multidimensional la lógica de la prueba univariada clásica. Se rechaza el supuesto si el valor p es inferior a 0.05.
 
 **Homocedasticidad.** La varianza de los errores debe ser constante a lo largo de todos los valores de las variables predictoras, es decir, no debe depender de los propios predictores. Se evalúa mediante la prueba de Breusch-Pagan para cada variable respuesta por separado. Un valor p mayor a 0.05 indica que la varianza es constante.
 
@@ -153,7 +155,7 @@ Para que los resultados del modelo sean válidos, deben cumplirse tres condicion
 
 La multicolinealidad ocurre cuando dos o más variables predictoras están fuertemente relacionadas entre sí. El problema que esto genera es que el modelo no puede distinguir bien el efecto de cada predictor por separado: los coeficientes se vuelven inestables, sus errores estándar se inflan y las inferencias estadísticas pierden confiabilidad.
 
-El diagnóstico estándar es el Factor de Inflación de la Varianza (VIF), que mide cuánto se infla la varianza del coeficiente de cada predictor debido a su correlación con los demás. Aldás y Uriel establecen los siguientes criterios de corte: valores menores a 5 indican ausencia de problema; entre 5 y 10 señalan colinealidad moderada que conviene vigilar; y valores iguales o superiores a 10 revelan colinealidad severa que distorsiona los coeficientes y justifica eliminar el predictor más redundante.
+El diagnóstico estándar es el Factor de Inflación de la Varianza (VIF), que mide cuánto se infla la varianza del coeficiente de cada predictor debido a su correlación con los demás. Aldás y Uriel, en *Análisis Multivariante Aplicado con R*, establecen los siguientes criterios de corte: valores menores a 5 indican ausencia de problema; entre 5 y 10 señalan colinealidad moderada que conviene vigilar; y valores iguales o superiores a 10 revelan colinealidad severa que distorsiona los coeficientes y justifica eliminar el predictor más redundante.
 
 Existe también una función llamada `alias()` en R, que detecta dependencias lineales exactas entre predictores: casos en los que una variable es combinación lineal perfecta de otras y sus coeficientes resultan completamente indeterminados. Sin embargo, esta función tiene un alcance limitado frente al VIF: solo capta redundancias exactas, pero no la colinealidad severa pero no perfecta que ocurre en la práctica. Por eso, aunque `alias()` sirve como primer filtro para descartar dependencias exactas, el diagnóstico definitivo de multicolinealidad debe apoyarse en el VIF.
 
@@ -165,7 +167,7 @@ El **R² ajustado** indica qué porcentaje de la variabilidad de cada variable r
 
 El **MAPE** (Error Porcentual Absoluto Medio) expresa el error promedio de predicción como porcentaje del valor real. Es intuitivo porque habla directamente en los mismos términos que la variable: un MAPE de 5%, por ejemplo, significa que el modelo se equivoca en promedio en un 5% del valor real. Valores cercanos a 0 indican alta precisión predictiva.
 
-La **validación cruzada** es una técnica que permite evaluar si el modelo mantiene su capacidad predictiva sobre datos que no participaron en su construcción. En este análisis se usa un esquema 80/20: el modelo se entrena sobre el 80% de los datos y se evalúa sobre el 20% restante. Para obtener resultados robustos y no dependientes de una sola partición, este procedimiento se repite 100 veces con semillas aleatorias distintas generadas a partir de una semilla madre (2026), siguiendo el espíritu de los experimentos reproducibles descritos por Irizarry. Un modelo que generaliza bien es aquel cuyos indicadores en datos no vistos son similares —y estables— a los obtenidos sobre los datos de entrenamiento.
+La **validación cruzada** es una técnica que permite evaluar si el modelo mantiene su capacidad predictiva sobre datos que no participaron en su construcción. En este análisis se usa un esquema 80/20: el modelo se entrena sobre el 80% de los datos y se evalúa sobre el 20% restante. Para obtener resultados robustos y no dependientes de una sola partición, este procedimiento se repite 100 veces con semillas aleatorias distintas generadas a partir de una semilla madre (2026), siguiendo el espíritu de los experimentos reproducibles descritos por Irizarry en *Introduction to Data Science*. Un modelo que generaliza bien es aquel cuyos indicadores en datos no vistos son similares —y estables— a los obtenidos sobre los datos de entrenamiento.
 
 ---
 
@@ -221,7 +223,32 @@ El segundo patrón es la correlación positiva fuerte de altitud con las tres va
 
 ### Modelo completo y diagnóstico de multicolinealidad
 
-Como primer paso, se estima el modelo con las cinco variables ambientales disponibles como predictoras.
+Como primer paso, se estima el modelo con las cinco variables ambientales disponibles como predictoras. En su forma matricial explícita, el modelo completo se expresa como:
+
+$$
+\begin{bmatrix}
+Y_{\text{VOCs},1} \\ Y_{\text{acidez},1} \\ Y_{\text{TDS},1}
+\end{bmatrix}
+=
+\begin{bmatrix}
+\beta_{0,V} \\ \beta_{0,A} \\ \beta_{0,T}
+\end{bmatrix}
++
+\begin{bmatrix}
+\beta_{\text{alt},V} & \beta_{\text{temp},V} & \beta_{\text{prec},V} & \beta_{\text{sol},V} & \beta_{\text{org},V} \\
+\beta_{\text{alt},A} & \beta_{\text{temp},A} & \beta_{\text{prec},A} & \beta_{\text{sol},A} & \beta_{\text{org},A} \\
+\beta_{\text{alt},T} & \beta_{\text{temp},T} & \beta_{\text{prec},T} & \beta_{\text{sol},T} & \beta_{\text{org},T}
+\end{bmatrix}
+\begin{bmatrix}
+X_{\text{altitud}} \\ X_{\text{temperatura}} \\ X_{\text{precipitacion}} \\ X_{\text{horas\_sol}} \\ X_{\text{mat\_organica}}
+\end{bmatrix}
++
+\begin{bmatrix}
+\varepsilon_{V} \\ \varepsilon_{A} \\ \varepsilon_{T}
+\end{bmatrix}
+$$
+
+donde $\mathbf{Y}$ es el vector de las tres variables de calidad para un lote dado (VOCs, acidez y TDS); $\boldsymbol{\beta}_0$ es el vector de interceptos; $\mathbf{B}$ es la matriz de coeficientes donde cada fila corresponde a una variable respuesta y cada columna a uno de los cinco predictores ambientales; $\mathbf{x}$ es el vector de valores del predictor para ese lote; y $\boldsymbol{\varepsilon}$ recoge los errores del modelo para cada respuesta.
 
 ```{r}
 #| label: modelo-completo
@@ -262,6 +289,33 @@ Los resultados son contundentes: altitud y temperatura presentan VIF superiores 
 La decisión es eliminar **temperatura**. Hay dos razones que respaldan esta elección. Desde el punto de vista estadístico, temperatura presenta el VIF más alto de los dos y es, por tanto, la variable más redundante. Desde el punto de vista científico, la temperatura de una finca de altura es una consecuencia directa de su altitud: el gradiente térmico vertical hace que la temperatura sea prácticamente predecible a partir de la altitud. Incluir ambas en el modelo sería como medir dos veces la misma cosa con escalas distintas.
 
 ### Modelo reducido (4 predictores) y verificación de VIF
+
+Eliminada la temperatura, el modelo se reestima con las cuatro variables ambientales restantes. En su forma matricial explícita:
+
+$$
+\begin{bmatrix}
+Y_{\text{VOCs}} \\ Y_{\text{acidez}} \\ Y_{\text{TDS}}
+\end{bmatrix}
+=
+\begin{bmatrix}
+\beta_{0,V} \\ \beta_{0,A} \\ \beta_{0,T}
+\end{bmatrix}
++
+\begin{bmatrix}
+\beta_{\text{alt},V} & \beta_{\text{prec},V} & \beta_{\text{sol},V} & \beta_{\text{org},V} \\
+\beta_{\text{alt},A} & \beta_{\text{prec},A} & \beta_{\text{sol},A} & \beta_{\text{org},A} \\
+\beta_{\text{alt},T} & \beta_{\text{prec},T} & \beta_{\text{sol},T} & \beta_{\text{org},T}
+\end{bmatrix}
+\begin{bmatrix}
+X_{\text{altitud}} \\ X_{\text{precipitacion}} \\ X_{\text{horas\_sol}} \\ X_{\text{mat\_organica}}
+\end{bmatrix}
++
+\begin{bmatrix}
+\varepsilon_{V} \\ \varepsilon_{A} \\ \varepsilon_{T}
+\end{bmatrix}
+$$
+
+La estructura es análoga al modelo completo, salvo que la columna correspondiente a temperatura ha sido retirada de la matriz de coeficientes $\mathbf{B}$ y su entrada ha desaparecido del vector de predictores $\mathbf{x}$.
 
 ```{r}
 #| label: modelo-4x
@@ -375,14 +429,33 @@ p_pillai    <- summary(manova(mod_4x), test = "Pillai")
 p_wilks     <- summary(manova(mod_4x), test = "Wilks")
 p_hotelling <- summary(manova(mod_4x), test = "Hotelling-Lawley")
 p_roy       <- summary(manova(mod_4x), test = "Roy")
+```
 
-cat("── Pillai ──────────────────────────────────────────\n")
+**Criterio de Pillai**
+
+```{r}
+#| label: pillai
 print(p_pillai)
-cat("\n── Wilks ───────────────────────────────────────────\n")
+```
+
+**Criterio de Wilks**
+
+```{r}
+#| label: wilks
 print(p_wilks)
-cat("\n── Hotelling-Lawley ────────────────────────────────\n")
+```
+
+**Criterio de Hotelling-Lawley**
+
+```{r}
+#| label: hotelling
 print(p_hotelling)
-cat("\n── Roy ─────────────────────────────────────────────\n")
+```
+
+**Criterio de Roy**
+
+```{r}
+#| label: roy
 print(p_roy)
 ```
 
@@ -397,6 +470,33 @@ Las tres variables que sí resultaron significativas tienen una justificación c
 - **Materia orgánica:** un suelo rico en materia orgánica nutre mejor la planta, retiene la humedad de forma uniforme y favorece un desarrollo radicular profundo. Todo ello se traduce en granos con mayor concentración de compuestos de calidad.
 
 ### Modelo final (3 predictores) y verificación de supuestos
+
+El modelo final retiene únicamente altitud, horas de sol y materia orgánica. Su representación matricial explícita es:
+
+$$
+\begin{bmatrix}
+Y_{\text{VOCs}} \\ Y_{\text{acidez}} \\ Y_{\text{TDS}}
+\end{bmatrix}
+=
+\begin{bmatrix}
+\beta_{0,V} \\ \beta_{0,A} \\ \beta_{0,T}
+\end{bmatrix}
++
+\begin{bmatrix}
+\beta_{\text{alt},V} & \beta_{\text{sol},V} & \beta_{\text{org},V} \\
+\beta_{\text{alt},A} & \beta_{\text{sol},A} & \beta_{\text{org},A} \\
+\beta_{\text{alt},T} & \beta_{\text{sol},T} & \beta_{\text{org},T}
+\end{bmatrix}
+\begin{bmatrix}
+X_{\text{altitud}} \\ X_{\text{horas\_sol}} \\ X_{\text{mat\_organica}}
+\end{bmatrix}
++
+\begin{bmatrix}
+\varepsilon_{V} \\ \varepsilon_{A} \\ \varepsilon_{T}
+\end{bmatrix}
+$$
+
+Cada fila de $\mathbf{B}$ contiene los tres coeficientes de esa variable respuesta sobre los predictores seleccionados. Esta formulación hace explícito que las tres respuestas comparten la misma estructura de predictores pero son estimadas con coeficientes propios para cada una.
 
 ```{r}
 #| label: modelo-final
@@ -462,17 +562,16 @@ El modelo final es globalmente significativo. Los cuatro criterios multivariados
 ### Ajuste en muestra completa: MAPE y R² ajustado
 
 ```{r}
-#| label: mape-funcion
+#| label: ajuste-completo
+#| fig-width: 10
+#| fig-height: 5
+#| message: false
+#| warning: false
 mape <- function(y_pred, y_real) {
   if (any(y_real <= 0)) warning("Valores reales no positivos detectados")
   mean(abs((y_pred - y_real) / y_real)) * 100
 }
-```
 
-```{r}
-#| label: ajuste-completo
-#| fig-width: 10
-#| fig-height: 5
 ajustados <- fitted(mod_final)
 
 mape_vocs   <- mape(ajustados[, "VOCs"],   bd$VOCs)
@@ -484,22 +583,6 @@ r2aj_vocs   <- resultados$`Response VOCs`$adj.r.squared   * 100
 r2aj_acidez <- resultados$`Response acidez`$adj.r.squared * 100
 r2aj_tds    <- resultados$`Response TDS`$adj.r.squared    * 100
 
-kable(
-  data.frame(
-    Variable  = c("VOCs", "Acidez", "TDS"),
-    MAPE_pct  = round(c(mape_vocs, mape_acidez, mape_tds), 3),
-    R2aj_pct  = round(c(r2aj_vocs, r2aj_acidez, r2aj_tds), 3)
-  ),
-  col.names = c("Variable respuesta", "MAPE (%)", "R² ajustado (%)"),
-  caption   = "Tabla 6. Métricas de ajuste sobre muestra completa (199 lotes)",
-  align     = "c"
-) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
-```
-
-```{r}
-#| label: graficos-metricas
-#| fig-width: 10
-#| fig-height: 4
 metricas <- data.frame(
   Variable = c("VOCs", "Acidez", "TDS"),
   MAPE     = c(mape_vocs, mape_acidez, mape_tds),
@@ -536,6 +619,8 @@ Para verificar que el desempeño anterior no se debe a que el modelo simplemente
 
 ```{r}
 #| label: validacion-cruzada
+#| message: false
+#| warning: false
 set.seed(2026)
 semillas <- sample(1:10000000, size = 100)
 p_pred   <- 3
@@ -580,10 +665,7 @@ for (i in seq_along(semillas)) {
     MAPE_TDS    = round(mt,  3)
   ))
 }
-```
 
-```{r}
-#| label: resumen-cv
 resumen_cv <- data.frame(
   Métrica = c("MAPE VOCs (%)", "MAPE Acidez (%)", "MAPE TDS (%)",
               "R²aj VOCs (%)", "R²aj Acidez (%)", "R²aj TDS (%)"),
@@ -607,7 +689,7 @@ resumen_cv <- data.frame(
 
 kable(
   resumen_cv,
-  caption = "Tabla 7. Resumen de métricas en validación cruzada (100 particiones 80/20)",
+  caption = "Tabla 6. Resumen de métricas en validación cruzada (100 particiones 80/20)",
   align   = "c"
 ) |> kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
 ```
@@ -647,7 +729,3 @@ Desde una perspectiva práctica, estos resultados sugieren que el perfil de cali
 # Pregunta 4
 
 # Pregunta 5
-
-# Pregunta 6
-
-# Pregunta 7

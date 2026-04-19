@@ -1,0 +1,477 @@
+---
+title: "Análisis de Componentes Principales"
+author: "Meza A., Angel D."
+date: today
+date-format: "DD [de] MMMM [de] YYYY"
+lang: es
+language: 
+  title-block-author-single: "Autor"
+  title-block-author-plural: "Autores"
+format:
+  html:
+    code-fold: show
+    code-summary: "Mostrar código"
+    toc: true
+    toc-depth: 5
+    toc-location: left
+    toc-title: "Contenido"
+    number-sections: false
+    theme: 
+      light: journal
+      dark: darkly
+    smooth-scroll: true
+    embed-resources: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Análisis de Componentes Principales
+
+## Introducción al caso
+
+El decatlón es una disciplina olímpica que combina diez pruebas atléticas en dos
+jornadas, abarcando capacidades físicas tan diversas como la velocidad explosiva,
+la potencia muscular, la coordinación técnica y la resistencia aeróbica. Los
+resultados en cada prueba no son independientes entre sí: un atleta con gran
+potencia en tren inferior tenderá a destacar simultáneamente en salto largo,
+salto de altura y lanzamientos, mientras que las pruebas de resistencia responden
+a una capacidad fisiológica distinta.
+
+Evaluar el rendimiento de los atletas prueba por prueba de forma univariada resulta
+insuficiente, pues ignora la estructura de correlaciones que subyace al perfil físico
+de cada competidor. Por ello, se emplea el *Análisis de Componentes Principales (ACP)*,
+que permite reducir la dimensionalidad del espacio de diez pruebas, identificar las
+dimensiones latentes del rendimiento atlético y visualizar la posición relativa de los
+competidores en dicho espacio.
+
+El análisis se aplica sobre los resultados de *33 atletas* que participaron en el
+decatlón de los *Juegos Olímpicos de 1988 (Seúl)*, con el objetivo de determinar
+cuántas dimensiones resumen adecuadamente el rendimiento global y qué agrupación de
+pruebas caracteriza a cada componente.
+
+### Variables
+
+| Variable | Prueba                           | Unidad |
+|:---------|:---------------------------------|:------:|
+| `100`    | Carrera de 100 metros            | s      |
+| `long`   | Salto largo                      | m      |
+| `poid`   | Lanzamiento de bala              | m      |
+| `haut`   | Salto de altura                  | m      |
+| `400`    | Carrera de 400 metros            | s      |
+| `110`    | Carrera de 110 metros con vallas | s      |
+| `disq`   | Lanzamiento de disco             | m      |
+| `perc`   | Salto con pértiga                | m      |
+| `jave`   | Lanzamiento de jabalina          | m      |
+| `1500`   | Carrera de 1500 metros           | s      |
+
+```{r}
+library(tidyverse)
+library(ade4)
+data(olympic)
+datos <- olympic$tab
+datos %>% str()
+```
+
+**Visualización de las primeras 5 filas del dataset**
+
+```{r}
+datos %>% head(5)
+```
+
+**Examinar si hay datos perdidos en la dataframe**
+
+```{r}
+library(naniar)
+miss_case_summary(datos)
+```
+
+***Interpretación***
+
+El dataset está completo: ninguno de los 33 atletas presenta valores perdidos
+en ninguna de las 10 pruebas, por lo que no es necesario aplicar ningún
+procedimiento de imputación antes del ACP.
+
+## Análisis Descriptivo
+
+```{r}
+library(psych)
+psych::describe(datos)
+```
+
+***Interpretación***
+
+Las variables presentan escalas muy heterogéneas: las carreras se miden en
+segundos (valores entre ~11 s para los 100 m y ~276 s para los 1500 m),
+mientras que los lanzamientos y saltos se expresan en metros. Esta disparidad
+de escalas y varianzas hace imprescindible estandarizar antes del ACP.
+
+En cuanto a la forma de las distribuciones, `long` muestra la asimetría
+negativa más marcada (skew = −0.85), indicando que la mayoría de atletas
+se concentra en distancias superiores a la media con pocos valores bajos.
+La variable `haut` presenta el mayor coeficiente de curtosis (1.29), con
+una distribución más apuntada que la normal. El resto de variables se
+mantiene en rangos moderados de asimetría y curtosis.
+
+## Análisis de correlación
+
+```{r}
+matriz_var_co <- cov(datos)
+matriz_var_co
+```
+
+***Interpretación***
+
+La matriz de covarianzas en escala original evidencia la extrema
+heterogeneidad de varianzas entre pruebas. `1500` presenta una varianza
+de ~186.5, mientras que `haut` apenas alcanza 0.008. Aplicar el ACP
+directamente sobre esta matriz haría que el primer componente capturara
+casi exclusivamente la variabilidad de `1500`, ignorando por completo la
+estructura latente de las demás pruebas.
+
+### Matriz de dispersión
+
+```{r}
+library(PerformanceAnalytics)
+chart.Correlation(datos, histogram = TRUE, pch = 20)
+```
+
+***Interpretación***
+
+La matriz de dispersión muestra correlaciones significativas (marcadas con
+asteriscos) entre varios pares de variables. Las correlaciones más fuertes
+y significativas se observan entre `110` y `100` (r = 0.64\*\*\*), y entre
+`400` y `100` (r = 0.61\*\*\*), lo que confirma que las tres carreras de
+velocidad comparten una misma capacidad física subyacente. Por otro lado,
+`long` correlaciona negativamente con `100` (r = −0.54\*\*) y con `110`
+(r = −0.48\*\*): los atletas más veloces tienden a saltar más lejos.
+El grupo de lanzamientos presenta correlaciones positivas y significativas
+entre sí: `poid`–`disq` (r = 0.81\*\*\*), `poid`–`jave` (r = 0.60\*\*\*) y
+`disq`–`jave` (r = 0.44\*\*). En contraste, `haut` no muestra correlaciones
+significativas con casi ninguna variable, anticipando que su variabilidad
+no quedará bien capturada en el plano principal del ACP. La variable `1500`
+solo alcanza correlación significativa con `400` (r = 0.59\*\*\*) y con
+`long` (r = −0.40\*), sugiriendo que la resistencia aeróbica tiene un patrón
+propio dentro del grupo.
+
+### Mapa de calor
+
+```{r}
+library(psych)
+cor.plot(cor(datos),
+         main        = "Mapa de Calor",
+         diag        = TRUE,
+         show.legend = TRUE,
+         numbers     = FALSE,
+         upper       = FALSE)
+```
+
+***Interpretación***
+
+El mapa de calor confirma visualmente la estructura de correlaciones. Se
+distinguen tres zonas de color claramente diferenciadas: un bloque rojo
+intenso entre `100`, `long`, `400` y `110`, que refleja la fuerte asociación
+entre las pruebas de velocidad y el salto largo; un bloque azul intenso
+entre `poid`, `disq` y `jave`, que agrupa los tres lanzamientos; y una zona
+de colores tenues (próximos al blanco) en las filas de `haut` y `1500`,
+indicando que estas dos variables tienen correlaciones débiles con el resto
+y se comportan de forma más independiente dentro del conjunto.
+
+## Análisis de Componentes Principales
+
+### Estandarización de los datos
+
+```{r}
+cov(datos)
+```
+
+```{r}
+cov(scale(datos))
+```
+
+***Interpretación***
+
+Al comparar ambas matrices se aprecia que en escala original las varianzas
+oscilan entre 0.008 (`haut`) y 186.5 (`1500`), una diferencia de cuatro
+órdenes de magnitud. Tras la estandarización, todas las varianzas son
+iguales a 1 y la matriz de covarianza coincide exactamente con la matriz
+de correlaciones. Trabajar con datos estandarizados garantiza que cada
+prueba contribuya al ACP en función de su estructura de correlación, no
+de su escala de medición.
+
+### Ajuste del ACP
+
+```{r}
+library(ade4)
+library(factoextra)
+
+acp <- dudi.pca(datos,
+                scannf = FALSE,
+                scale  = TRUE,
+                nf     = ncol(datos))
+```
+
+### Autovalores y varianza explicada
+
+```{r}
+acp$eig
+sum(acp$eig)
+
+inertia.dudi(acp)
+```
+
+***Interpretación***
+
+La traza de la matriz es igual a 10, confirmando que el ACP se realizó
+sobre la matriz de correlaciones. Aplicando el **criterio de Kaiser**
+(retener componentes con autovalor > 1), se retienen **2 componentes
+principales**:
+
+| Componente | Autovalor | Varianza explicada | Acumulado |
+|:----------:|:---------:|:-----------------:|:---------:|
+| CP1        | 3.418     | 34.18 %           | 34.18 %   |
+| CP2        | 2.606     | 26.06 %           | 60.25 %   |
+| CP3        | 0.943     |  9.43 %           | 69.68 %   |
+
+Entre CP1 y CP2 se acumula el **60.25 %** de la variabilidad total. A
+partir de CP3 los autovalores caen por debajo de 1, lo que significa que
+cada componente adicional aporta menos información que una sola variable
+original estandarizada.
+
+### Scree Plot — criterio de retención
+
+```{r}
+#| label: fig-scree
+#| fig-cap: "Scree plot con línea de referencia en λ = 1 (criterio de Kaiser)"
+
+# Primera forma
+plot(acp$eig, type = "b", pch = 20, col = "blue", lwd = 2,
+     xlab = "Componente", ylab = "Autovalor")
+abline(h = 1, lty = 3, col = "red", lwd = 2)
+
+# Segunda forma
+fviz_eig(acp, addlabels = TRUE, hjust = 0.5,
+         barfill   = "white",
+         barcolor  = "darkblue",
+         linecolor = "red") +
+  ylim(0, 50) +
+  theme_minimal()
+```
+
+***Interpretación***
+
+Ambas formas del scree plot coinciden en el mismo mensaje. En la primera
+(gráfico de puntos), la curva cae abruptamente de CP1 (λ = 3.42) a CP2
+(λ = 2.61) y luego de CP2 a CP3 (λ = 0.94), donde cruza la línea roja de
+referencia en λ = 1 y se aplana visiblemente a partir de ahí. El codo se
+produce entre CP2 y CP3, marcando el punto a partir del cual la ganancia
+en varianza explicada es marginal. En la segunda forma (gráfico de barras),
+CP1 explica el 34.2 % y CP2 el 26.1 %, sumando juntos el 60.3 %; desde
+CP3 en adelante ninguna barra supera el 10 % y el descenso se vuelve
+gradual y uniforme. Ambos criterios —Kaiser y codo— convergen en retener
+**2 componentes principales**.
+
+### Vectores propios y correlaciones variables–componentes
+
+```{r}
+# Coeficientes (vectores propios)
+acp$c1
+
+# Correlaciones variables–componentes
+acp$co
+```
+
+***Interpretación***
+
+**Componente 1 (34.18 %)** — *Velocidad y explosividad de tren inferior*
+
+CP1 está definido principalmente por `110` (r = 0.801), `100` (r = 0.769),
+`400` (r = 0.658), `long` (r = −0.729) y `perc` (r = −0.710). Las tres
+carreras de velocidad cargan positivamente: a mayor tiempo, peor rendimiento
+y mayor valor en CP1. Los saltos largo y con pértiga cargan negativamente:
+mayor distancia implica mejor rendimiento y score más negativo en CP1. Esta
+componente opone a los atletas lentos (valores positivos) frente a los
+veloces y explosivos (valores negativos), y representa la capacidad
+neuromuscular de generación rápida de fuerza en tren inferior.
+
+**Componente 2 (26.06 %)** — *Potencia de lanzamiento*
+
+CP2 está liderado por `disq` (r = 0.813), `poid` (r = 0.781), `1500`
+(r = 0.680) y `jave` (r = 0.600). Los tres lanzamientos forman un grupo
+coherente con cargas positivas elevadas, capturando la potencia muscular
+de tren superior. La presencia de `1500` con una carga similar a la de
+`jave` se debe a una covariación estadística particular de este dataset:
+los atletas con mejor rendimiento en los lanzamientos también tienden a
+terminar mejor los 1500 m, posiblemente porque son atletas más completos
+en general. Esto no implica que fuerza y resistencia aeróbica sean la
+misma capacidad fisiológica.
+
+### Círculo de correlaciones
+
+```{r}
+#| label: fig-circulo
+#| fig-cap: "Círculo de correlaciones sobre CP1 y CP2"
+
+# Primera forma
+s.corcircle(acp$co, grid = FALSE, xax = 1, yax = 2)
+
+# Segunda forma
+fviz_pca_var(acp, col.var = "#FF3030") + theme_minimal()
+```
+
+***Interpretación***
+
+Ambas versiones del círculo de correlaciones muestran la misma estructura.
+Las flechas de `100`, `110` y `400` apuntan hacia la derecha sobre el eje
+horizontal (CP1 positivo) y son largas, indicando alta correlación con CP1
+y buena representación en el plano. Las flechas de `poid` y `disq` son casi
+paralelas entre sí y apuntan hacia arriba-izquierda, con fuerte proyección
+sobre CP2; `jave` sigue la misma dirección pero con un vector ligeramente
+más corto. La flecha de `long` apunta hacia abajo-izquierda, con carga
+negativa tanto en CP1 como en CP2, separándose del grupo de lanzamientos.
+La flecha de `perc` apunta hacia la izquierda con una leve componente
+positiva en CP2, asociándose a CP1 negativo. La variable `1500` apunta
+hacia arriba-derecha, con carga positiva en ambos componentes: comparte
+el semiplano derecho con las carreras de velocidad en CP1, pero se aleja
+hacia arriba por su carga en CP2. La flecha de `haut` es notablemente más
+corta que las demás y apunta casi horizontalmente hacia la izquierda,
+indicando que esta variable tiene baja representación en el plano CP1–CP2
+y que su variabilidad se distribuye principalmente en componentes no
+mostrados.
+
+### Scores de los individuos
+
+```{r}
+round(acp$li[1:6, ], 3)
+
+# Verificar independencia entre componentes
+round(cor(acp$li), 4)
+```
+
+***Interpretación***
+
+La matriz de correlaciones entre componentes muestra valores exactamente
+iguales a cero en todos los pares, confirmando la **ortogonalidad** de
+las componentes: cada una captura información completamente independiente
+de las demás.
+
+Revisando los scores de los primeros seis atletas, el atleta 2 obtiene el
+score más negativo en CP1 (−2.830), siendo el más veloz y explosivo del
+subgrupo. El atleta 6, con score en CP1 de −2.717 y −1.455 en CP2, presenta
+un perfil equilibrado: velocidad elevada y buen rendimiento en lanzamientos.
+El atleta 1 destaca con el mayor score positivo en CP2 (+1.250), lo que lo
+posiciona como el más orientado a los lanzamientos dentro de este subgrupo.
+El atleta 5, en cambio, tiene el score más negativo en CP2 (−2.050),
+indicando un perfil opuesto: relativamente débil en lanzamientos respecto
+al grupo.
+
+### Gráfico de individuos
+
+```{r}
+#| label: fig-individuos
+#| fig-cap: "Posición de los atletas en el primer plano principal"
+
+# Primera forma
+s.label(acp$li, xax = 1, yax = 2,
+        clabel = 0.7, grid = FALSE, boxes = FALSE)
+
+# Segunda forma
+fviz_pca_ind(acp, col.ind = "steelblue")
+```
+
+***Interpretación***
+
+El gráfico ubica a los 33 atletas en el plano CP1–CP2. Se observa que la
+mayoría de los competidores se concentra en el cuadrante superior-izquierdo
+e inferior-izquierdo (atletas 1–16 aproximadamente), con scores negativos
+en CP1, lo que indica que el grupo analizado es en general rápido y
+explosivo. Los atletas del lado derecho del eje (21, 22, 30, 31, 32, 33)
+presentan tiempos más altos en las carreras, es decir, menor velocidad.
+
+El atleta 17 es el más extremo en CP2 positivo (~5.0), destacando
+notablemente sobre el resto en la dimensión de lanzamientos y resistencia.
+En el extremo opuesto de CP2, el atleta 33 (~−2.5) es el que menos se
+asocia a esa dimensión. Los atletas 2, 5 y 6, ubicados en el cuadrante
+inferior-izquierdo, combinan velocidad elevada (CP1 negativo) con bajo
+score en CP2, mostrando un perfil especializado en velocidad y explosividad
+pero no en lanzamientos.
+
+### Biplot
+
+```{r}
+#| label: fig-biplot
+#| fig-cap: "Biplot: variables (flechas) e individuos (puntos) sobre CP1–CP2"
+
+fviz_pca_biplot(acp,
+                repel   = FALSE,
+                col.var = "#EE3A8C",
+                col.ind = "steelblue") +
+  theme_minimal()
+```
+
+***Interpretación***
+
+El biplot integra la información del círculo de correlaciones y el gráfico
+de individuos en una sola representación. Los atletas 2, 5 y 6, ubicados
+en el extremo izquierdo, se proyectan en la dirección opuesta a las carreras
+de velocidad: son los más rápidos del grupo. El atleta 17, en el extremo
+superior, se proyecta en la dirección de `poid`, `disq` y `jave`, siendo
+el más potente en lanzamientos. Los atletas 31, 32 y 33, en el semiplano
+derecho, se alinean con las flechas de `100`, `110` y `400`, indicando
+que son los más lentos en velocidad. El atleta 4, en el cuadrante
+superior-izquierdo, se proyecta tanto en la dirección de `perc` como
+parcialmente hacia `poid` y `disq`, sugiriendo un perfil con buena
+explosividad y potencia de lanzamiento. La nube de puntos no presenta
+grupos claramente separados, lo que confirma que el rendimiento en
+decatlón varía de forma continua y que los perfiles altamente especializados
+—ya sea en velocidad pura o en lanzamientos puros— son los que más se
+alejan del centro.
+
+### Exportar resultados
+
+```{r}
+salida_acp <- cbind(datos, acp$li[, 1:3])
+head(salida_acp)
+write.csv(salida_acp, "resultados_acp.csv", row.names = TRUE)
+```
+
+## Conclusiones
+
+El ACP aplicado a los resultados del decatlón olímpico de Seúl 1988
+permite extraer las siguientes conclusiones:
+
+1. **La estandarización es indispensable.** Las pruebas del decatlón
+   presentan varianzas que van desde 0.008 (`haut`) hasta 186.5 (`1500`),
+   una diferencia de cuatro órdenes de magnitud. Trabajar con la matriz
+   de correlaciones garantiza que cada prueba contribuya al análisis en
+   función de su estructura de asociación con las demás, no de su unidad
+   de medición.
+
+2. **Dos componentes resumen el rendimiento global.** CP1 y CP2 acumulan
+   el 60.25 % de la variabilidad total, cumpliendo el criterio de Kaiser
+   y el codo del scree plot. Esta reducción de 10 variables a 2 dimensiones
+   interpretables es suficiente para caracterizar el perfil atlético de
+   los competidores.
+
+3. **CP1 separa a los atletas por velocidad y explosividad.** Las carreras
+   de 100 m, 110 m con vallas y 400 m, junto con el salto largo y el salto
+   con pértiga, definen esta dimensión. Los atletas con scores negativos
+   en CP1 son los más rápidos y explosivos del grupo.
+
+4. **CP2 distingue a los atletas por potencia de lanzamiento.** El disco,
+   la bala y la jabalina son las variables que más pesan en esta componente,
+   representando la capacidad de fuerza de tren superior. El atleta 17
+   sobresale de forma marcada en esta dimensión, con un score de ~5.0
+   que lo separa claramente del resto del grupo.
+
+5. **Los perfiles de velocidad y potencia son independientes entre sí.**
+   La correlación entre CP1 y CP2 es exactamente cero, confirmando que
+   ser veloz no implica ser potente en lanzamientos, y viceversa. Ambas
+   capacidades son dimensiones ortogonales del rendimiento en decatlón.
+
+6. **El rendimiento en decatlón es continuo y no se agrupa en perfiles
+   discretos.** La nube de individuos en el plano principal no muestra
+   conglomerados separados, sino una distribución gradual. Los extremos
+   —atletas 2, 5, 6 en velocidad; atleta 17 en lanzamientos; atletas 31,
+   32, 33 en lentitud— son los que más se alejan del perfil promedio.

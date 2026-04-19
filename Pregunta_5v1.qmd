@@ -97,6 +97,8 @@ $$y_i =
 
 Es sobre estas variables latentes $y^*$ que se calcula la estructura de correlaciones, evitando la atenuación típica del coeficiente de Pearson.
 
+Es fundamental precisar que para este estudio se ha seleccionado el Análisis Factorial Exploratorio (AFE) en lugar del Análisis de Componentes Principales (ACP). Esta decisión radica en que, mientras el ACP es una técnica descriptiva de reducción de datos que busca explicar la mayor parte de la variabilidad total con el menor número posible de componentes , el AFE permite construir un modelo para explicar la estructura causal y las interrelaciones latentes que subyacen a las variables observadas. De este modo, los factores se identifican a partir de la varianza común, tratando a los indicadores originales como variables dependientes de factores no observables que deben ser hallados para comprender el fenómeno estudiado.
+
 ## Definición de Variables y Dimensiones Teóricas
 
 | Dimensión Latente | Ítem | Descripción de la Variable (1 = Sí, 0 = No) |

@@ -135,9 +135,29 @@ La regresión lineal multivariada es una extensión del modelo de regresión uni
 
 La representación matricial del modelo es la siguiente:
 
-$$\mathbf{Y}_{n \times q} = \mathbf{X}_{n \times (p+1)} \, \mathbf{B}_{(p+1) \times q} + \mathbf{E}_{n \times q}$$
+$$
+\begin{bmatrix} Y_1 \\ Y_2 \\ \vdots \\ Y_q \end{bmatrix}
+=
+\begin{bmatrix} \beta_{0,1} \\ \beta_{0,2} \\ \vdots \\ \beta_{0,q} \end{bmatrix}
++
+\begin{bmatrix}
+\beta_{1,1} & \beta_{2,1} & \cdots & \beta_{p,1} \\
+\beta_{1,2} & \beta_{2,2} & \cdots & \beta_{p,2} \\
+\vdots      & \vdots      & \ddots & \vdots      \\
+\beta_{1,q} & \beta_{2,q} & \cdots & \beta_{p,q}
+\end{bmatrix}
+\begin{bmatrix} X_1 \\ X_2 \\ \vdots \\ X_p \end{bmatrix}
++
+\begin{bmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \vdots \\ \varepsilon_q \end{bmatrix}
+$$
 
-donde $\mathbf{Y}$ es la matriz de variables respuesta con $n$ observaciones y $q$ variables dependientes; $\mathbf{X}$ es la matriz de diseño que incluye el término independiente y los $p$ predictores; $\mathbf{B}$ contiene los coeficientes a estimar (uno por cada combinación de predictor y respuesta); y $\mathbf{E}$ recoge los errores del modelo.
+Donde:
+
+- $Y_k$: variable dependiente (respuesta) $k$, con $k = 1, \ldots, q$.
+- $\beta_{0,k}$: intercepto para cada variable respuesta $k$.
+- $\beta_{j,k}$: coeficiente de regresión asociado al predictor $j$ sobre la respuesta $k$ ($j = 1, \ldots, p$).
+- $X_j$: variable predictora $j$.
+- $\varepsilon_k$: término de error para cada ecuación $k$.
 
 En este caso, $n = 199$ lotes, $q = 3$ variables respuesta (VOCs, acidez y TDS), y $p$ predictores ambientales que se irán ajustando durante el análisis. Aldás y Uriel, en su obra *Análisis Multivariante Aplicado con R*, destacan que este planteamiento conjunto resulta más eficiente que estimar modelos separados cuando las respuestas están correlacionadas, porque los estimadores aprovechan esa estructura de correlación para ganar precisión. Irizarry, en *Introduction to Data Science*, enfatiza que la fortaleza del marco matricial radica en su generalidad: permite extender con naturalidad los resultados de la regresión simple al caso multivariado sin necesidad de cambiar la lógica de estimación.
 

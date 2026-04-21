@@ -172,7 +172,7 @@ kable(t(round(prop_resp, 3)), caption = "Proporción de Respuestas Afirmativas")
 
 ::: nota
 **Interpretación Teórica:** 
-Las medias se sitúan equilibradas cerca de 0.50. Esto garantiza que no existen "factores de dificultad", permitiendo que la agrupación factorial se deba estrictamente al contenido de las variables y no a la probabilidad asimétrica de respuesta.
+Las proporciones de respuesta afirmativa oscilan entre **0.460 (P8)** y **0.532 (P9)**, manteniéndose todas muy próximas a 0.50. Esto garantiza la ausencia de "factores de dificultad": ítems con proporciones extremas (< 0.20 o > 0.80) generarían agrupaciones artificiales basadas en frecuencia de respuesta y no en el contenido latente de las variables. Al cumplirse este supuesto, la agrupación factorial reflejará exclusivamente la estructura conceptual del instrumento.
 :::
 
 ### Matriz de Correlaciones Tetracóricas
@@ -181,14 +181,20 @@ Las medias se sitúan equilibradas cerca de 0.50. Esto garantiza que no existen 
 r.tetra = tetrachoric(test)
 R = r.tetra$rho    
 
-# Visualización de la matriz
+# Visualización gráfica
 corrplot(R, method = "color", type = "upper", addCoef.col = "black", 
          number.cex = 0.7, tl.col = "black", title = "Matriz Tetracórica de E-Commerce", mar=c(0,0,1,0))
+
+# Tabla numérica ← AQUÍ
+kable(round(R, 2), 
+      caption = "Matriz de Correlaciones Tetracóricas") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), 
+                full_width = T, font_size = 11)
 ```
 
 ::: nota
 **Interpretación de la Matriz:**
-El uso de la matriz tetracórica revela fuertes agrupaciones internas perfectas. Los ítems de Seguridad (P1-P5, P11) muestran correlaciones positivas muy altas entre sí, al igual que los ítems de Hábitos (P6-P10, P12). La correlación cruzada entre ambos bloques es baja, anticipando la existencia de dos factores latentes ortogonales limpios.
+La matriz tetracórica revela una estructura de bloques muy definida. Los ítems de **Seguridad (P1-P5, P11)** presentan correlaciones internas en un rango de **0.77 a 0.88**, reflejando una fuerte cohesión conceptual. Los ítems de **Hábitos (P6-P10, P12)** muestran correlaciones internas entre **0.64 y 0.83**, igualmente elevadas. Crucialmente, las correlaciones **cruzadas entre ambos bloques** son prácticamente nulas (rango: **-0.18 a 0.00**), confirmando la independencia entre las dos dimensiones y anticipando con claridad la existencia de dos factores latentes ortogonales.
 :::
 
 ### Pruebas de Factorabilidad
@@ -205,11 +211,12 @@ check_factorstructure(R, n = n_obs)
 ::: nota
 **Interpretación de Supuestos (Factorabilidad):**
 
-1. **Prueba de Bartlett:** El resultado es altamente significativo ($p < 0.001$). En términos prácticos, esto nos confirma que las preguntas de la encuesta están lo suficientemente relacionadas entre sí como para ser agrupadas en factores. Si este valor fuera alto (mayor a 0.05), no podríamos seguir con el análisis.
+1. **Prueba de Bartlett:** El estadístico χ²(66) = 6654.04 es altamente significativo 
+($p < 0.001$), confirmando que la matriz de correlaciones tetracóricas es significativamente distinta de una matriz identidad. En términos prácticos, esto indica que las preguntas están lo suficientemente interrelacionadas como para ser agrupadas en factores latentes. Si el p-valor fuera mayor a 0.05, el análisis factorial no estaría justificado.
 
 2. **Índice KMO:** El valor global obtenido es de **0.84**, lo cual se califica como **"Meritorio"**. Esto nos asegura que la muestra es adecuada y que los resultados que obtendremos del análisis factorial serán estables y confiables.
 
-3. **Análisis Individual (MSA):** Al revisar cada pregunta por separado, todas superan el mínimo aceptable de 0.50, situándose en un rango excelente de **0.71 a 0.97**. Esto es muy positivo, ya que indica que no es necesario eliminar ninguna variable del modelo; todas las preguntas (P1 a P12) están aportando información relevante al estudio.
+3. **Análisis Individual (MSA):** Al revisar cada pregunta por separado, todas superan el mínimo aceptable de 0.50, situándose en un rango excelente de **0.76 a 0.91**. Esto es muy positivo, ya que indica que no es necesario eliminar ninguna variable del modelo; todas las preguntas (P1 a P12) están aportando información relevante al estudio.
 
 En conclusión, la base de datos supera con éxito las pruebas de calidad y es totalmente apta para identificar las dimensiones de Seguridad y Hábitos de Consumo.
 :::
@@ -265,19 +272,26 @@ Esta rotación no cambia los datos, pero sí "gira" los ejes para que podamos ve
 
 ## Resultados y Clasificación
 ```{r}
-# ── Matriz Completa de cargas rotadas ──────────────────────────────────────
+# ── Matriz Completa de cargas rotadas (ambas columnas) ────────────
 cargas_matrix <- as.data.frame(unclass(factorial_final$loadings))
-colnames(cargas_matrix) <- c("WLS1 — Seguridad", "WLS2 — Hábitos") # El algoritmo podría invertir el orden, ajustamos visualmente
+colnames(cargas_matrix) <- c("WLS1 — Seguridad", "WLS2 — Hábitos")
 cargas_matrix <- round(cargas_matrix, 3)
+cargas_matrix <- cbind(Ítem = rownames(cargas_matrix), cargas_matrix) # ← FIX: rownames como columna visible
 
-# ── Clasificación por dimensión (solo carga dominante) ─────────────────────
+kable(cargas_matrix,
+      caption   = "Matriz Completa de Cargas Factoriales Rotadas (Varimax)",
+      row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F) %>%
+  column_spec(2, bold = TRUE, color = "#2980B9") %>%
+  column_spec(3, bold = TRUE, color = "#E74C3C")
+
+# ── Clasificación por dimensión (carga dominante) ─────────────
 dat  <- data.frame(ifelse(
           abs(factorial_final$loadings) == apply(abs(factorial_final$loadings), 1, max),
           apply(abs(factorial_final$loadings), 1, max), NA))
 dat1 <- data.frame(Item = rownames(dat), dat)
 fact <- gather(dat1, Factor, Carga_Principal, -Item) %>% drop_na()
 
-# Añadir descripción de cada ítem (Actualizado a 12 ítems)
 descripciones <- c(
   P1  = "Verifica certificado HTTPS",
   P2  = "Evita guardar datos de tarjeta",
@@ -292,12 +306,10 @@ descripciones <- c(
   P11 = "Utiliza autenticación de dos pasos (2FA)",
   P12 = "Comparte ofertas en sus redes sociales"
 )
-fact$Descripción <- descripciones[fact$Item]
-fact$Carga_Principal <- round(fact$Carga_Principal, 3)
-
+fact$Descripción      <- descripciones[fact$Item]
+fact$Carga_Principal  <- round(fact$Carga_Principal, 3)
 Cargas <- split(fact[, c("Item", "Descripción", "Carga_Principal")], fact$Factor)
 
-# Mostramos tablas
 kable(Cargas$WLS1, digits = 3, row.names = FALSE,
       caption = "Dimensión 1 — Seguridad y Prevención (WLS1)") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = F) %>%
@@ -312,12 +324,12 @@ kable(Cargas$WLS2, digits = 3, row.names = FALSE,
 ::: nota
 **Interpretación de Cargas Factoriales:**
 
-La estructura factorial obtenida cumple con el criterio de **Estructura Simple de Thurstone**, ya que cada ítem satura con fuerza en un solo factor y presenta cargas residuales insignificantes en el otro. Esto confirma una excelente **validez discriminante**.
+La estructura factorial obtenida cumple con el criterio de **Estructura Simple de Thurstone**, ya que cada ítem satura con fuerza en un solo factor y presenta cargas cruzadas insignificantes en el otro. La tabla completa de cargas confirma que **todas las cargas cruzadas son menores a 0.12 en valor absoluto** (máximo: P8 sobre WLS1 = -0.111), lo que demuestra formalmente la **validez discriminante** del instrumento.
 
-* **Dimensión 1 (Seguridad):** Esta dimensión es liderada por el ítem **P5 (Evita Wi-Fi público)** con una carga de **0.936**, seguido de **P2 (Seguridad de tarjeta)** con **0.918**. Estas altas saturaciones (> 0.70) indican una fuerte **validez convergente**, sugiriendo que la prevención de riesgos financieros es el eje central de este factor.
-* **Dimensión 2 (Hábitos):** Los indicadores más representativos son **P7 (Uso de Apps)** y **P6 (Frecuencia mensual)**, ambos con cargas de **0.90**. El hecho de que todos los ítems de esta dimensión superen el umbral de 0.80 refuerza la estabilidad del constructo sobre comportamiento digital.
+* **Dimensión 1 (Seguridad):** Liderada por **P5 (Evita Wi-Fi público)** con una carga de **0.936**, seguido de **P2 (Seguridad de tarjeta)** con **0.918**. La carga mínima en esta dimensión es **0.874 (P11)**, superando con amplitud el umbral convencional de 0.70. Esto indica una fuerte **validez convergente**: todos los ítems apuntan al mismo constructo de prevención de riesgos financieros en línea.
+* **Dimensión 2 (Hábitos):** Los indicadores más representativos son **P7 (Uso de Apps)** y **P6 (Frecuencia mensual)**, ambos con cargas de **0.90**. La carga mínima es **0.803 (P12)**, lo que confirma que todos los ítems superan el umbral de 0.80, reforzando la estabilidad del constructo de comportamiento de consumo digital.
 
-En resumen, los resultados demuestran que el instrumento mide con precisión y sin ambigüedades las dos dimensiones propuestas, siendo apto para la toma de decisiones estratégicas.
+En resumen, el instrumento mide con precisión y sin ambigüedades las dos dimensiones propuestas, siendo apto para la toma de decisiones estratégicas.
 :::
 
 ## Análisis de Comunalidades ($h^2$)
@@ -342,10 +354,10 @@ kable(comunalidades,
 ::: nota
 **Interpretación de Comunalidades (h²) y Especificidades (ψ²):**
 
-Todas las comunalidades son superiores a 0.50, lo que indica que el modelo no pierde información relevante de ninguna pregunta.
+Todas las comunalidades son superiores a 0.50, lo que indica que el modelo no pierde información relevante de ninguna pregunta. El rango de comunalidades va de **0.648 (P12)** a **0.884 (P5)**, con una media aproximada de **0.79**, reflejando una representación homogéneamente alta del modelo sobre todos los ítems.
 
-* **Máxima representación:** El ítem **P5** es el mejor capturado por el modelo, con un **88.4%** de su varianza explicada.
-* **Mayor especificidad:** El ítem **P12 (Compartir ofertas)** presenta la mayor varianza única o "ruido" (35.2%), aunque su comunalidad de **0.648** sigue siendo muy alta para estándares estadísticos.
+* **Máxima representación:** El ítem **P5 (Evita transacciones en Wi-Fi público)** es el mejor capturado por el modelo, con un **88.4%** de su varianza explicada por los dos factores.
+* **Mayor especificidad:** El ítem **P12 (Comparte ofertas en redes sociales)** presenta la mayor varianza única (35.2%), lo que sugiere que este comportamiento, aunque claramente asociado a los Hábitos de consumo, contiene componentes individuales no capturados por el factor común — posiblemente relacionados con motivaciones sociales específicas del usuario. Aun así, su comunalidad de **0.648** supera ampliamente el umbral aceptable.
 :::
 
 ## Evaluación de la Calidad y Fiabilidad del Modelo
@@ -376,10 +388,40 @@ kable(fit_indices,
   row_spec(which(fit_indices$Evaluación == "✓ Cumple"),    background = "#d5f5e3") %>%
   row_spec(which(fit_indices$Evaluación == "✗ No cumple"), background = "#fdebd0")
 
-# ── Fiabilidad Omega (sobre datos crudos con cor="tet") ───────────────────────
+# ── Fiabilidad Omega ──────────────────────────────────────────────────────────
 omega_res <- omega(test, nfactors = 2, fm = "wls", cor = "tet",
                    plot = FALSE, n.iter = 1)
 cat("Fiabilidad Omega Total del Instrumento:", round(omega_res$omega.tot, 3), "\n")
+
+# ── Varianza Explicada por Factor ─────────────────────────────────────────────
+vaccounted <- as.data.frame(factorial_final$Vaccounted)
+kable(round(vaccounted, 3),
+      caption = "Varianza Explicada por Factor (WLS + Varimax)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+
+# ── Comparación Alpha vs. Omega por dimensión ─────────────────────────────────
+alpha_seg     <- alpha(test[, c("P1","P2","P3","P4","P5","P11")])
+alpha_habitos <- alpha(test[, c("P6","P7","P8","P9","P10","P12")])
+
+omega_seg     <- omega(test[, c("P1","P2","P3","P4","P5","P11")],
+                       nfactors = 1, fm = "wls", cor = "tet",
+                       plot = FALSE, n.iter = 1)
+omega_habitos <- omega(test[, c("P6","P7","P8","P9","P10","P12")],
+                       nfactors = 1, fm = "wls", cor = "tet",
+                       plot = FALSE, n.iter = 1)
+
+comparacion_fiab <- data.frame(
+  Dimensión      = c("Seguridad (F1)", "Hábitos (F2)"),
+  Alpha_Cronbach = c(round(alpha_seg$total$raw_alpha, 3),
+                     round(alpha_habitos$total$raw_alpha, 3)),
+  Omega          = c(round(omega_seg$omega.tot, 3),
+                     round(omega_habitos$omega.tot, 3))
+)
+
+kable(comparacion_fiab,
+      caption   = "Comparación de Fiabilidad por Dimensión: Alpha vs. Omega",
+      row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
 ```
 
 ::: nota
@@ -388,9 +430,10 @@ cat("Fiabilidad Omega Total del Instrumento:", round(omega_res$omega.tot, 3), "\
 Los indicadores globales confirman que el modelo tiene un **ajuste estadístico sobresaliente**:
 
 1. **Precisión (RMSR y Fit):** El **RMSR de 0.024** (menor a 0.05) y el **Fit Off-Diagonal de 0.986** indican que el modelo reproduce casi el 99% de las relaciones originales. El error residual es prácticamente inexistente.
-2. **Validación (Chi-cuadrado):** El p-valor de **0.733** (mayor a 0.05) confirma que no hay diferencias significativas entre nuestro modelo y la realidad de los datos; el ajuste es perfecto.
-3. **Varianza Acumulada:** Explicamos el **78.2%** de la información total con solo dos dimensiones, lo que demuestra una enorme capacidad de síntesis informativa.
-4. **Fiabilidad (Omega):** El coeficiente **Omega de 0.896** garantiza que el instrumento es altamente confiable y que las preguntas miden de forma consistente lo que pretenden medir.
+2. **Validación (Chi-cuadrado):** El p-valor de **0.733** (mayor a 0.05) confirma que no existen diferencias significativas entre la matriz reproducida por el modelo y la matriz tetracórica observada; el ajuste puede considerarse óptimo.
+3. **Aporte por Factor:** El Factor 1 (Seguridad) explica el **41.3%** de la varianza total y el Factor 2 (Hábitos) el **36.9%**, sumando el **78.2%** acumulado. La distribución equilibrada (52.8% vs. 47.2% de la varianza explicada) confirma que ninguna dimensión domina artificialmente al modelo; ambos factores tienen un peso explicativo comparable.
+4. **Fiabilidad (Omega global):** El coeficiente **Omega de 0.896** garantiza que el instrumento es altamente confiable en su conjunto.
+5. **Comparación Alpha vs. Omega por dimensión:** Los coeficientes Alpha y Omega son prácticamente idénticos en ambas dimensiones (Seguridad: 0.905 vs. 0.905; Hábitos: 0.870 vs. 0.871). Esta equivalencia indica que las escalas cumplen aproximadamente el supuesto de **tau-equivalencia** (cargas factoriales iguales entre ítems), lo que en este caso valida el uso de Alpha como estimador de fiabilidad. Ambas dimensiones superan el umbral de 0.80, clasificándose como **altamente confiables**.
 :::
 
 ## Gráficos de Dispersión
@@ -411,11 +454,11 @@ abline(h = c(-0.4, 0.4), v = c(-0.4, 0.4), lty = 2, col = "red")
 
 ::: nota
 **Interpretación del Mapa de Cargas:**
-1. El gráfico muestra una Estructura Simple perfecta, que es el objetivo ideal de cualquier Análisis Factorial. Podemos observar dos agrupamientos claramente diferenciados:
 
-2. Eje Horizontal (Factor 1 - Seguridad): Los ítems P1, P2, P3, P4, P5 y P11 se sitúan muy cerca del eje de la Dimensión 1 y lejos del origen. Esto confirma que son indicadores puros de la cultura de prevención y seguridad, sin interferencias de la otra dimensión.
+El gráfico confirma una **Estructura Simple** clara, objetivo ideal de cualquier Análisis Factorial. Todos los ítems se ubican bien por fuera de las líneas de referencia (> 0.40), confirmando que la totalidad de las cargas son estadísticamente significativas.
 
-3. Eje Vertical (Factor 2 - Hábitos): Los ítems P6, P7, P8, P9, P10 y P12 se alinean sobre el eje de la Dimensión 2. Su posición indica que miden exclusivamente el comportamiento de consumo digital del usuario.
+* **Eje Horizontal (Factor 1 — Seguridad):** Los ítems P1, P2, P3, P4, P5 y P11 se sitúan en el extremo derecho del gráfico, muy próximos al eje horizontal y lejos del origen. El ítem **P5** es el más alejado, consistente con su carga máxima de 0.936. Esto confirma que son indicadores puros de la cultura de prevención de riesgos, sin interferencias del Factor 2.
+* **Eje Vertical (Factor 2 — Hábitos):** Los ítems P6, P7, P8, P9, P10 y P12 se concentran en la parte superior del gráfico. **P7** y **P6** son los más extremos, en línea con sus cargas de 0.904 y 0.902 respectivamente. Ninguno de estos ítems presenta proyección relevante sobre el eje horizontal, evidenciando una separación limpia entre dimensiones.
 :::
 
 ## Conclusiones y Recomendaciones
@@ -425,6 +468,8 @@ abline(h = c(-0.4, 0.4), v = c(-0.4, 0.4), lty = 2, col = "red")
 2. Validez Estructural: La inclusión de mecanismos modernos como la autenticación 2FA (P11) y la interacción en redes sociales (P12) consolidaron la fiabilidad de las escalas.
 
 3. Recomendación Estratégica: Las empresas de E-commerce deben seguir fortaleciendo la percepción visual de seguridad en sus plataformas, dado que esta dimensión actúa como una condición fundamental e independiente para la frecuencia de compra.
+
+4. Comparación de Fiabilidad: La equivalencia entre Alpha y Omega en ambas dimensiones (Seguridad: 0.905; Hábitos: 0.871) sugiere que las escalas cumplen el supuesto de tau-equivalencia, otorgando robustez adicional al instrumento.
 
 # Bibliografía
 

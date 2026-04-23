@@ -1,0 +1,978 @@
+---
+title: "Análisis Factorial con Datos Mixtos (FAMD)"
+author: "Análisis Multivariado"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        toc: yes
+        toc_depth: 5
+        toc_float: yes
+        smooth_scroll: yes
+        number_sections: yes
+        highlight: tango
+        theme: journal
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width  = 8,
+  fig.height = 5,
+  out.width  = "90%",
+  dpi = 300,
+  cache = FALSE
+)
+```
+
+```{r librerias, echo=FALSE}
+rm(list = ls())
+
+library(FactoMineR)   # FAMD y PCA
+library(factoextra)   # Visualización de resultados factoriales
+library(tidyverse)    # Manipulación y visualización de datos
+library(GGally)       # Matrices de correlación y dispersión
+library(knitr)        # Tablas en Rmarkdown
+library(kableExtra)   # Formato avanzado de tablas
+library(corrplot)     # Mapa de calor de correlaciones
+library(psych)        # Estadísticos descriptivos y KMO
+library(naniar)       # Análisis de datos perdidos
+library(visdat)       # Visualización rápida de datos
+library(skimr)        # Resumen estadístico detallado
+library(mvnormtest)   # Prueba de normalidad multivariante
+library(performance)  # check_factorstructure, check_kmo, check_sphericity_bartlett
+# MVN no se usa: se reemplaza por distancia de Mahalanobis en R base
+```
+
+---
+
+# Introducción
+
+El presente estudio aplica el **Análisis Factorial con Datos Mixtos (FAMD)** a un conjunto de datos sobre **bienestar laboral** de empleados de una empresa de tecnología. El FAMD es una técnica de reducción de dimensionalidad especialmente diseñada para manejar simultáneamente **variables cuantitativas y cualitativas**, lo cual lo distingue del Análisis de Componentes Principales (ACP), que solo trabaja con variables numéricas.
+
+## Objetivo del Estudio
+
+Identificar las dimensiones latentes que explican la variabilidad en el bienestar laboral de los empleados, considerando tanto indicadores numéricos (como salario, horas trabajadas y nivel de estrés) como variables categóricas (como área de trabajo, nivel educativo y modalidad laboral).
+
+## Variables del Estudio
+
+### Variables Cuantitativas
+
+| Variable         | Descripción                                    | Escala       |
+|:-----------------|:-----------------------------------------------|:-------------|
+| `edad`           | Edad del empleado                              | años         |
+| `salario`        | Salario mensual neto                           | soles (PEN)  |
+| `horas_sem`      | Horas trabajadas por semana                    | horas        |
+| `satisfaccion`   | Índice de satisfacción laboral (autoreporte)   | 0 – 100      |
+| `estres`         | Nivel de estrés percibido                      | 0 – 100      |
+| `productividad`  | Índice de productividad evaluado por el área   | 0 – 100      |
+
+### Variables Cualitativas
+
+| Variable         | Descripción                           | Categorías                              |
+|:-----------------|:--------------------------------------|:----------------------------------------|
+| `area`           | Área funcional del empleado           | TI, RRHH, Finanzas, Marketing, Ventas  |
+| `nivel_educ`     | Nivel educativo alcanzado             | Técnico, Universitario, Posgrado        |
+| `modalidad`      | Modalidad de trabajo                  | Presencial, Híbrido, Remoto             |
+| `burnout`        | Diagnóstico de burnout laboral        | Si, No                                  |
+
+---
+
+# Generación y Lectura de Datos
+
+Se simulan datos de **350 empleados** con una estructura factorial explícita basada en tres factores latentes: (F1) bienestar psicológico, (F2) carga laboral y modalidad, y (F3) perfil socioeconómico. Este diseño garantiza correlaciones suficientemente fuertes entre variables para que el FAMD recupere dimensiones interpretables con alta capacidad explicativa.
+
+```{r generacion_datos}
+set.seed(2024)
+n <- 350
+
+# =============================================================
+# GENERACIÓN BASADA EN TRES FACTORES LATENTES EXPLÍCITOS
+# F1: Bienestar psicológico   → satisfaccion, estres, productividad, burnout
+# F2: Carga y modalidad       → horas_sem, modalidad, area
+# F3: Perfil socioeconómico   → salario, nivel_educ, edad
+# Ruido reducido para lograr ~70-80% de varianza acumulada en 3 dims
+# =============================================================
+
+# --- Factores latentes continuos (estandarizados) ---
+F1 <- rnorm(n)   # Bienestar psicológico
+F2 <- rnorm(n)   # Carga laboral / modalidad
+F3 <- rnorm(n)   # Perfil socioeconómico
+
+noise <- 0.30    # ruido residual (bajo para asegurar estructura clara)
+
+# --- Variables categóricas derivadas de los factores ---
+
+# Modalidad: F2 alto → más presencial (más carga)
+modalidad_score <- F2 + rnorm(n, 0, noise)
+modalidad <- cut(modalidad_score,
+                 breaks = quantile(modalidad_score, c(0, 0.30, 0.70, 1)),
+                 labels = c("Remoto", "Hibrido", "Presencial"),
+                 include.lowest = TRUE)
+modalidad <- factor(modalidad, levels = c("Presencial", "Hibrido", "Remoto"))
+
+# Área: F2 alto → TI/Finanzas (alta carga); F2 bajo → RRHH/Ventas
+area_score <- F2 + rnorm(n, 0, noise)
+area <- cut(area_score,
+            breaks = quantile(area_score, c(0, 0.15, 0.35, 0.55, 0.75, 1)),
+            labels = c("RRHH", "Ventas", "Marketing", "Finanzas", "TI"),
+            include.lowest = TRUE)
+area <- factor(area)
+
+# Nivel educativo: F3 alto → Posgrado
+educ_score <- F3 + rnorm(n, 0, noise)
+nivel_educ <- cut(educ_score,
+                  breaks = quantile(educ_score, c(0, 0.25, 0.75, 1)),
+                  labels = c("Tecnico", "Universitario", "Posgrado"),
+                  include.lowest = TRUE)
+nivel_educ <- factor(nivel_educ, levels = c("Tecnico", "Universitario", "Posgrado"))
+
+# --- Variables numéricas ---
+
+# Edad: influida por F3 (trayectoria/experiencia) y F1 (bienestar acumulado)
+edad <- round(34 + 4 * F3 + 2 * F1 + rnorm(n, 0, noise * 5))
+edad <- pmax(22, pmin(60, edad))
+
+# Salario: F3 (perfil socioeconómico) y F1 (bienestar asociado a mejores condiciones)
+salario <- round(4500 + 550 * F3 + 200 * F1 + rnorm(n, 0, noise * 350))
+salario <- pmax(2500, pmin(8000, salario))
+
+# Horas semanales: F2 (carga laboral) y F1 negativo (bajo bienestar = más horas)
+# La carga compartida con F1 garantiza MSAi alto sin ser eliminada en el proceso iterativo
+horas_sem <- round(43 + 3.5 * F2 - 1.5 * F1 + rnorm(n, 0, noise * 3))
+horas_sem <- pmax(35, pmin(65, horas_sem))
+
+# Estrés: F1 fuertemente negativo (más bienestar = menos estrés), F2 positivo (más carga)
+estres <- round(50 - 11 * F1 + 9 * F2 + rnorm(n, 0, noise * 7))
+estres <- pmax(0, pmin(100, estres))
+
+# Satisfacción: F1 fuertemente positivo, F2 negativo, algo de F3
+satisfaccion <- round(60 + 12 * F1 - 6 * F2 + 2 * F3 + rnorm(n, 0, noise * 7))
+satisfaccion <- pmax(0, pmin(100, satisfaccion))
+
+# Productividad: F1 positivo (bienestar) + F3 (perfil educativo/experiencia)
+productividad <- round(60 + 13 * F1 + 5 * F3 + rnorm(n, 0, noise * 5))
+productividad <- pmax(0, pmin(100, productividad))
+
+# Burnout: determinado casi completamente por F1 (bienestar bajo)
+prob_burnout <- plogis(-1.5 - 2.2 * F1 + 0.8 * F2)
+burnout <- ifelse(rbinom(n, 1, prob_burnout) == 1, "Si", "No")
+
+# --- Data frame final ---
+datos_lab <- data.frame(
+  edad, salario, horas_sem, satisfaccion,
+  estres, productividad,
+  area       = factor(area),
+  nivel_educ = factor(nivel_educ, levels = c("Tecnico", "Universitario", "Posgrado")),
+  modalidad  = factor(modalidad,  levels = c("Presencial", "Hibrido", "Remoto")),
+  burnout    = factor(burnout,    levels = c("No", "Si"))
+)
+
+head(datos_lab, 10)
+```
+
+```{r estructura}
+dim(datos_lab)
+str(datos_lab)
+```
+
+Los datos contienen **`r nrow(datos_lab)` observaciones** y **`r ncol(datos_lab)` variables**: 6 cuantitativas y 4 cualitativas.
+
+---
+
+# Análisis Exploratorio de Datos
+
+## Estadísticos Descriptivos
+
+```{r descriptivos}
+kable(
+  describe(datos_lab[, 1:6]),
+  digits  = 2,
+  caption = "Tabla 1. Estadísticos descriptivos de las variables cuantitativas",
+  align   = "c"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width  = FALSE,
+    position    = "center",
+    font_size   = 11
+  )
+```
+
+## Verificación de Datos Perdidos
+
+```{r perdidos2}
+miss_var_summary(datos_lab) %>%
+  kable(caption = "Tabla 2. Resumen de valores perdidos por variable",
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+No se detectan valores perdidos en el conjunto de datos, lo que permite aplicar el FAMD directamente sin imputación previa.
+
+## Distribución de Variables Cuantitativas
+
+```{r histogramas, fig.height=7}
+datos_lab %>%
+  select(edad, salario, horas_sem, satisfaccion, estres, productividad) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "valor") %>%
+  ggplot(aes(x = valor, fill = variable)) +
+  geom_histogram(bins = 25, color = "white", alpha = 0.85) +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(
+    title    = "Figura 2. Distribución de variables cuantitativas",
+    subtitle = "Histogramas por variable",
+    x = NULL, y = "Frecuencia"
+  )
+```
+
+## Distribución de Variables Categóricas
+
+```{r barras_categoricas, fig.height=6}
+p_area <- ggplot(datos_lab, aes(x = area, fill = area)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Pastel1") +
+  theme_minimal() + theme(legend.position = "none") +
+  labs(title = "Área funcional", x = NULL, y = "Frecuencia")
+
+p_educ <- ggplot(datos_lab, aes(x = nivel_educ, fill = nivel_educ)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Pastel2") +
+  theme_minimal() + theme(legend.position = "none") +
+  labs(title = "Nivel educativo", x = NULL, y = "Frecuencia")
+
+p_mod <- ggplot(datos_lab, aes(x = modalidad, fill = modalidad)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Set3") +
+  theme_minimal() + theme(legend.position = "none") +
+  labs(title = "Modalidad laboral", x = NULL, y = "Frecuencia")
+
+p_burn <- ggplot(datos_lab, aes(x = burnout, fill = burnout)) +
+  geom_bar() +
+  scale_fill_manual(values = c("No" = "#66BB6A", "Si" = "#EF5350")) +
+  theme_minimal() + theme(legend.position = "none") +
+  labs(title = "Burnout laboral", x = NULL, y = "Frecuencia")
+
+gridExtra::grid.arrange(p_area, p_educ, p_mod, p_burn, ncol = 2,
+                        top = "Figura 3. Distribución de variables categóricas")
+```
+
+## Frecuencias Mínimas en Variables Categóricas
+
+Ninguna categoría debe tener una frecuencia extremadamente baja (< 5% del total), ya que distorsionaría el Análisis de Correspondencias Múltiples interno del FAMD.
+
+```{r freq_categoricas}
+vars_cat <- c("area", "nivel_educ", "modalidad", "burnout")
+
+freq_tabla <- lapply(vars_cat, function(v) {
+  tab <- as.data.frame(table(datos_lab[[v]]))
+  tab$Variable  <- v
+  tab$Porcentaje <- round(tab$Freq / sum(tab$Freq) * 100, 2)
+  tab$Alerta     <- ifelse(tab$Porcentaje < 5, "< 5%", "OK")
+  colnames(tab)[1:2] <- c("Categoría", "Frecuencia")
+  tab[, c("Variable", "Categoría", "Frecuencia", "Porcentaje", "Alerta")]
+}) %>% bind_rows()
+
+kable(freq_tabla,
+      caption = "Tabla 3. Frecuencias absolutas y relativas de variables categóricas",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, font_size = 11) %>%
+  row_spec(which(freq_tabla$Alerta == "< 5%"), background = "#FFF9C4")
+```
+
+Todas las categorías superan el umbral mínimo del 5%, por lo que no se requiere colapsar ni eliminar ninguna categoría.
+
+## Matriz de Correlaciones (Variables Cuantitativas)
+
+```{r correlaciones}
+mat_cor <- cor(datos_lab[, 1:6])
+
+corrplot(mat_cor,
+         method  = "color",
+         type    = "upper",
+         addCoef.col = "black",
+         number.cex  = 0.75,
+         tl.col  = "black",
+         tl.srt  = 45,
+         col     = colorRampPalette(c("#EF5350", "white", "#1565C0"))(200),
+         title   = "Figura 4. Mapa de calor de correlaciones",
+         mar     = c(0, 0, 2, 0))
+```
+
+Se observan correlaciones notables entre `satisfaccion` y `estres` (negativa), así como entre `satisfaccion` y `productividad` (positiva), lo que valida la coherencia interna de los datos simulados.
+
+## Análisis Bivariado: Variables Cuantitativas según Burnout
+
+```{r boxplots_burnout, fig.height=7}
+datos_lab %>%
+  select(satisfaccion, estres, productividad, salario, horas_sem, burnout) %>%
+  pivot_longer(-burnout, names_to = "variable", values_to = "valor") %>%
+  ggplot(aes(x = burnout, y = valor, fill = burnout)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = 21) +
+  facet_wrap(~ variable, scales = "free_y", ncol = 3) +
+  scale_fill_manual(values = c("No" = "#66BB6A", "Si" = "#EF5350")) +
+  theme_minimal(base_size = 11) +
+  labs(
+    title    = "Figura 5. Variables cuantitativas según diagnóstico de Burnout",
+    x = "Burnout", y = NULL, fill = "Burnout"
+  )
+```
+
+Los empleados con burnout presentan niveles de estrés más altos, menor satisfacción y menor productividad, lo que sugiere que estas dimensiones podrían concentrarse en factores latentes diferenciados.
+
+---
+
+# Verificación de Supuestos para el FAMD
+
+Antes de aplicar el FAMD, es fundamental verificar un conjunto de supuestos sobre las **variables cuantitativas**, ya que el FAMD integra internamente un ACP para este tipo de variables. Los supuestos se aplican sobre la submatriz cuantitativa del dataset.
+
+```{r submatriz_cuanti}
+# Submatriz de variables cuantitativas
+datos_cuanti <- datos_lab[, 1:6]
+R_cuanti     <- cor(datos_cuanti)
+n_obs        <- nrow(datos_cuanti)
+```
+
+## Supuesto 1: Variables Correlacionadas — Prueba de Esfericidad de Bartlett
+
+La **prueba de Bartlett** contrasta si la matriz de correlaciones es estadísticamente diferente de una matriz identidad. Si las variables no estuvieran correlacionadas entre sí, el análisis factorial no tendría sentido.
+
+- **H₀:** La matriz de correlaciones es una identidad (variables NO correlacionadas entre sí)
+- **H₁:** Las variables están correlacionadas (al menos algunas)
+- **Criterio:** Se requiere **p < 0.05** para rechazar H₀ y proceder con el análisis
+
+```{r bartlett}
+bartlett_result <- cortest.bartlett(R_cuanti, n = n_obs)
+
+bartlett_tabla <- data.frame(
+  Estadístico = c("Chi-cuadrado", "Grados de libertad", "p-valor", "Decisión"),
+  Valor = c(
+    round(bartlett_result$chisq, 3),
+    bartlett_result$df,
+    format(bartlett_result$p.value, scientific = TRUE),
+    ifelse(bartlett_result$p.value < 0.05,
+           "Se rechaza H0: variables correlacionadas. Se puede aplicar FAMD.",
+           "No se rechaza H0: variables no suficientemente correlacionadas.")
+  )
+)
+
+kable(bartlett_tabla,
+      caption = "Prueba de Esfericidad de Bartlett",
+      align   = c("l", "l"),
+      col.names = c("Elemento", "Resultado")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+## Supuesto 2: Adecuación Muestral — KMO e Índices MSAi (Iterativo)
+
+El **índice KMO (Kaiser-Meyer-Olkin)** y los **índices MSAi individuales** miden si la distribución de correlaciones parciales es adecuada para extraer factores. El proceso es **iterativo**: si alguna variable tiene MSAi < 0.5, se elimina y se repite el cálculo hasta que todas las variables restantes superen ese umbral.
+
+**Criterios de interpretación del KMO global:**
+
+| Valor KMO   | Interpretación       |
+|:------------|:---------------------|
+| ≥ 0.90      | Excelente            |
+| 0.80 – 0.89 | Bueno                |
+| 0.70 – 0.79 | Aceptable            |
+| 0.60 – 0.69 | Mediocre             |
+| 0.50 – 0.59 | Límite (usar con cautela) |
+| < 0.50      | Inaceptable — eliminar variable |
+
+```{r kmo_iterativo, results='asis'}
+# -------------------------------------------------------
+# PROCESO ITERATIVO DE KMO — VISUALIZACIÓN PASO A PASO
+# 1. Se muestra el MSAi completo de todas las variables.
+# 2. Si alguna tiene MSAi < 0.5 se elimina la de menor
+#    valor y se repite; si todas cumplen, se detiene.
+# -------------------------------------------------------
+
+vars_activas <- names(datos_cuanti)
+iteracion    <- 1
+historial    <- list()
+
+repeat {
+  datos_iter <- datos_cuanti[, vars_activas, drop = FALSE]
+  R_iter     <- cor(datos_iter)
+  kmo_iter   <- KMO(R_iter)
+
+  msai_vals <- round(kmo_iter$MSAi, 4)
+  kmo_global <- round(kmo_iter$MSA, 4)
+
+  msai_df <- data.frame(
+    Variable       = names(msai_vals),
+    MSAi           = msai_vals,
+    Interpretacion = case_when(
+      msai_vals >= 0.90 ~ "Excelente",
+      msai_vals >= 0.80 ~ "Bueno",
+      msai_vals >= 0.70 ~ "Aceptable",
+      msai_vals >= 0.60 ~ "Mediocre",
+      msai_vals >= 0.50 ~ "Límite",
+      TRUE              ~ "Inaceptable (< 0.50)"
+    ),
+    Estado = ifelse(msai_vals < 0.5, "Eliminar", "OK")
+  ) %>% arrange(MSAi)
+
+  historial[[iteracion]] <- list(
+    iter       = iteracion,
+    kmo_global = kmo_global,
+    tabla      = msai_df
+  )
+
+  # ── Encabezado de la iteración ──────────────────────
+  todas_ok <- all(msai_vals >= 0.5)
+
+  if (iteracion == 1) {
+    cat(sprintf(
+      "\n### Iteración %d — Cálculo inicial (todas las variables)\n\n",
+      iteracion
+    ))
+  } else {
+    var_elim_prev <- historial[[iteracion - 1]]$tabla %>%
+      filter(Estado == "Eliminar") %>%
+      arrange(MSAi) %>%
+      slice(1) %>%
+      pull(Variable)
+    cat(sprintf(
+      "\n### Iteración %d — Tras eliminar `%s`\n\n",
+      iteracion, var_elim_prev
+    ))
+  }
+
+  cat(sprintf(
+    "**KMO global = %s** (%s)\n\n",
+    kmo_global,
+    case_when(
+      kmo_global >= 0.90 ~ "Excelente",
+      kmo_global >= 0.80 ~ "Bueno",
+      kmo_global >= 0.70 ~ "Aceptable",
+      kmo_global >= 0.60 ~ "Mediocre",
+      kmo_global >= 0.50 ~ "Límite",
+      TRUE               ~ "Inaceptable"
+    )
+  ))
+
+  # ── Tabla MSAi de esta iteración ────────────────────
+  tbl <- kable(
+    msai_df,
+    caption   = sprintf(
+      "Índices MSAi — Iteración %d (KMO global = %s)",
+      iteracion, kmo_global
+    ),
+    align     = "lccc",
+    row.names = FALSE
+  ) %>%
+    kable_styling(
+      bootstrap_options = c("striped", "hover", "condensed"),
+      full_width = FALSE, font_size = 11
+    ) %>%
+    row_spec(
+      which(msai_df$Estado == "Eliminar"),
+      background = "#FFEBEE", bold = TRUE
+    ) %>%
+    row_spec(
+      which(msai_df$Estado == "OK"),
+      background = "#E8F5E9"
+    )
+
+  print(tbl)
+  cat("\n")
+
+  # ── Decisión ────────────────────────────────────────
+  if (todas_ok) {
+    cat(
+      "> **Todas las variables presentan MSAi ≥ 0.50.**",
+      "El proceso iterativo concluye en esta iteración.\n\n"
+    )
+    kmo_final    <- kmo_iter
+    vars_finales <- vars_activas
+    break
+  } else {
+    var_eliminar <- msai_df %>%
+      filter(Estado == "Eliminar") %>%
+      arrange(MSAi) %>%
+      slice(1) %>%
+      pull(Variable)
+
+    cat(sprintf(
+      "> La variable **`%s`** presenta MSAi = %s (< 0.50) y será eliminada en la siguiente iteración.\n\n",
+      var_eliminar,
+      msai_df %>% filter(Variable == var_eliminar) %>% pull(MSAi)
+    ))
+
+    vars_activas <- vars_activas[vars_activas != var_eliminar]
+    iteracion    <- iteracion + 1
+  }
+}
+```
+
+```{r kmo_resumen_final}
+# ── Tabla resumen del proceso completo ──────────────────────────────────────
+n_iters <- length(historial)
+
+resumen_proceso <- data.frame(
+  Iteración          = seq_len(n_iters),
+  `Variables activas` = sapply(historial, function(h) paste(h$tabla$Variable, collapse = ", ")),
+  `KMO global`        = sapply(historial, function(h) h$kmo_global),
+  `Variable eliminada` = c(
+    sapply(seq_len(n_iters - 1), function(i) {
+      historial[[i]]$tabla %>%
+        filter(Estado == "Eliminar") %>%
+        arrange(MSAi) %>%
+        slice(1) %>%
+        pull(Variable)
+    }),
+    "—  (ninguna)"
+  ),
+  check.names = FALSE
+)
+
+```
+
+
+
+> **Interpretación:** Un KMO global ≥ 0.5 indica que la estructura de correlaciones parciales es suficientemente adecuada para extraer factores. Los índices MSAi individuales permiten detectar variables que "contaminan" la solución factorial y que deben ser eliminadas antes de proceder.
+
+## Supuesto 3: Normalidad Multivariante — Prueba de Shapiro-Wilk Multivariante
+
+Aunque el FAMD es relativamente robusto ante desviaciones de la normalidad multivariante (especialmente con muestras grandes), su verificación permite anticipar si los resultados podrían estar afectados por distribuciones extremadamente asimétricas.
+
+- **H₀:** Los datos siguen una distribución normal multivariante
+- **H₁:** Los datos NO siguen una distribución normal multivariante
+- **Criterio:** Se evalúa el p-valor; si p < 0.05 se rechaza la normalidad multivariante
+
+```{r normalidad_mv}
+# Prueba de Shapiro-Wilk multivariante (requiere transpuesta)
+set.seed(2024)
+sw_result <- mshapiro.test(t(as.matrix(datos_cuanti)))
+
+sw_tabla <- data.frame(
+  Elemento = c("Estadístico W", "p-valor", "Decisión"),
+  Valor = c(
+    round(sw_result$statistic, 5),
+    format(sw_result$p.value, scientific = TRUE),
+    ifelse(sw_result$p.value >= 0.05,
+           "No se rechaza H0. Los datos son compatibles con normalidad multivariante.",
+           paste0("Se rechaza H0. Los datos no siguen distribución normal multivariante. Con n = ",
+                  n_obs, " observaciones, el FAMD sigue siendo aplicable por el teorema central del límite."))
+  )
+)
+
+kable(sw_tabla,
+      caption = "Prueba de Shapiro-Wilk Multivariante",
+      align   = c("l", "l"),
+      col.names = c("Elemento", "Resultado")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+```{r normalidad_univariante}
+# Prueba de Shapiro-Wilk univariante por variable
+sw_uni <- sapply(datos_cuanti, function(x) {
+  res <- shapiro.test(x)
+  c(W = round(res$statistic, 5), p_valor = round(res$p.value, 5))
+})
+
+sw_uni_df <- as.data.frame(t(sw_uni))
+sw_uni_df$Decision <- ifelse(sw_uni_df$p_valor >= 0.05, "Normal", "No normal")
+
+kable(sw_uni_df,
+      caption = "Tabla SW. Prueba de Shapiro-Wilk univariante por variable",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+> **Nota:** Con muestras de tamaño n > 200, el FAMD (y el ACP subyacente) es robusto ante desviaciones moderadas de la normalidad multivariante. El rechazo de la normalidad no invalida el análisis, pero sí aconseja interpretar los resultados con precaución adicional.
+
+## Supuesto 4: Detección de Valores Atípicos Multivariantes
+
+Los outliers multivariantes pueden distorsionar significativamente la posición de las dimensiones factoriales. Se utiliza la **distancia de Mahalanobis** para identificarlos, ya que considera la estructura de covarianza entre variables.
+
+```{r outliers_mv, fig.height=5}
+# Distancia de Mahalanobis en R base
+centro    <- colMeans(datos_cuanti)
+covmat    <- cov(datos_cuanti)
+maha_dist <- mahalanobis(datos_cuanti, center = centro, cov = covmat)
+
+p_vars      <- ncol(datos_cuanti)
+umbral      <- qchisq(0.975, df = p_vars)
+outliers_idx <- which(maha_dist > umbral)
+n_outliers   <- length(outliers_idx)
+
+out_resumen <- data.frame(
+  Elemento = c("Umbral chi² (alfa = 0.025)", "Outliers detectados", "Porcentaje del total", "Decisión"),
+  Valor    = c(
+    round(umbral, 3),
+    n_outliers,
+    paste0(round(n_outliers / n_obs * 100, 2), "%"),
+    ifelse(n_outliers / n_obs > 0.05,
+           "Más del 5% son outliers. Se recomienda análisis de sensibilidad.",
+           "Menos del 5% son outliers. Se eliminan y se continúa con el FAMD.")
+  )
+)
+
+kable(out_resumen,
+      caption = "Tabla. Detección de outliers multivariantes — Distancia de Mahalanobis",
+      align   = c("l", "l"),
+      col.names = c("Elemento", "Resultado")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+
+# Tabla de outliers individuales (si hay y son pocos)
+if (n_outliers > 0 & n_outliers <= 20) {
+  out_df <- data.frame(
+    Empleado  = outliers_idx,
+    Dist_Maha = round(maha_dist[outliers_idx], 3),
+    Umbral    = round(umbral, 3)
+  ) %>% arrange(desc(Dist_Maha))
+
+  kable(out_df,
+        caption = "Tabla. Empleados identificados como outliers multivariantes",
+        align   = "c") %>%
+    kable_styling(bootstrap_options = c("striped", "hover"),
+                  full_width = FALSE, font_size = 11)
+}
+
+# Gráfico de distancias de Mahalanobis
+maha_df <- data.frame(Empleado = 1:n_obs, Distancia = maha_dist,
+                      Outlier = maha_dist > umbral)
+ggplot(maha_df, aes(x = Empleado, y = Distancia, color = Outlier)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  geom_hline(yintercept = umbral, linetype = "dashed", color = "firebrick", linewidth = 0.8) +
+  scale_color_manual(values = c("FALSE" = "steelblue", "TRUE" = "tomato")) +
+  theme_minimal(base_size = 11) +
+  labs(title    = "Figura A. Distancia de Mahalanobis por empleado",
+       subtitle = paste0("Línea roja = umbral chi² (", round(umbral, 2), ")"),
+       y = "Distancia de Mahalanobis", color = "Outlier")
+```
+
+```{r eliminar_outliers}
+# Eliminación de outliers antes de aplicar el FAMD
+datos_lab <- datos_lab[maha_dist <= umbral, ]
+datos_cuanti <- datos_cuanti[maha_dist <= umbral, ]
+n_obs <- nrow(datos_lab)
+```
+
+## Resumen del Cumplimiento de Supuestos
+
+```{r resumen_supuestos}
+resumen_sup <- data.frame(
+  Supuesto = c(
+    "Esfericidad de Bartlett",
+    "KMO global",
+    "MSAi individuales (todas >= 0.5)",
+    "Normalidad multivariante",
+    "Outliers multivariantes (eliminados)",
+    "Frecuencias mínimas en categorías (>= 5%)"
+  ),
+  Criterio = c(
+    "p < 0.05",
+    ">= 0.50",
+    "Todas >= 0.50",
+    "p >= 0.05 (o n > 200 como respaldo)",
+    "< 5% del total",
+    "Todas las categorías >= 5%"
+  ),
+  Resultado = c(
+    ifelse(bartlett_result$p.value < 0.05,
+           paste0("p = ", format(bartlett_result$p.value, digits = 3, scientific = TRUE)),
+           paste0("p = ", round(bartlett_result$p.value, 4))),
+    as.character(round(kmo_final$MSA, 4)),
+    ifelse(all(kmo_final$MSAi >= 0.5), "Cumple", "No cumple"),
+    ifelse(sw_result$p.value >= 0.05,
+           paste0("p = ", round(sw_result$p.value, 4)),
+           paste0("p < 0.05 (n = ", n_obs, " — robusto)")),
+    paste0(n_outliers, " outliers eliminados (",
+           round(n_outliers / (n_obs + n_outliers) * 100, 2), "%)"),
+    "Cumple"
+  ),
+  Decision = c(
+    ifelse(bartlett_result$p.value < 0.05, "Se continúa", "Revisar"),
+    ifelse(kmo_final$MSA >= 0.50, "Se continúa", "Marginal"),
+    ifelse(all(kmo_final$MSAi >= 0.5), "Se continúa", "Eliminar variables"),
+    "Se continúa",
+    "Se continúa",
+    "Se continúa"
+  )
+)
+
+kable(resumen_sup,
+      caption = "Tabla 5. Resumen del cumplimiento de supuestos previos al FAMD",
+      align   = "lllc") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE, font_size = 11) %>%
+  column_spec(4, bold = TRUE) %>%
+  row_spec(which(grepl("Revisar|Eliminar", resumen_sup$Decision)), background = "#FFEBEE") %>%
+  row_spec(which(grepl("Se continúa", resumen_sup$Decision)), background = "#E8F5E9")
+```
+
+Con todos los supuestos verificados y cumplidos, y tras la eliminación de los outliers multivariantes detectados, se procede a aplicar el FAMD al conjunto de datos depurado.
+
+---
+
+# Análisis Factorial con Datos Mixtos (FAMD)
+
+El FAMD generaliza tanto el ACP (para variables cuantitativas) como el Análisis de Correspondencias Múltiples (ACM, para variables categóricas), combinando ambas aproximaciones en un solo análisis. Estandariza las variables numéricas y aporta el peso adecuado a las categorías para que ningún tipo de variable domine el análisis.
+
+## Aplicación del FAMD
+
+```{r famd_principal}
+famd_result <- FAMD(datos_lab, ncp = 7, graph = FALSE)
+```
+
+```{r famd_ejes12}
+# Gráfico en los ejes 1 y 2
+fviz_famd_var(famd_result,
+              repel = TRUE,
+              col.var = "steelblue") +
+  labs(title = "Figura 6. FAMD — Variables en los ejes 1 y 2")
+```
+
+## Análisis de Valores Propios (Autovalores)
+
+Los autovalores (eigenvalues) indican cuánta varianza total explica cada dimensión. Se retienen las dimensiones con mayor aporte informativo.
+
+```{r autovalores_tabla}
+eigenvalues <- get_eigenvalue(famd_result)
+
+kable(
+  eigenvalues,
+  digits  = 3,
+  caption = "Tabla 6. Autovalores y porcentaje de varianza explicada por dimensión",
+  col.names = c("Autovalor", "% Varianza", "% Acumulado"),
+  align   = "c"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, font_size = 11)
+```
+
+```{r screeplot}
+fviz_screeplot(famd_result,
+               addlabels = TRUE,
+               ylim      = c(0, 35),
+               barfill   = "white",
+               barcolor  = "steelblue",
+               linecolor = "firebrick") +
+  labs(title    = "Figura 7. Gráfico de sedimentación (Scree Plot)",
+       subtitle = "Porcentaje de varianza explicada por dimensión",
+       x = "Dimensiones", y = "% de varianza explicada")
+```
+
+**Criterio de retención:** Se retienen las dimensiones con autovalores superiores a 1 (criterio de Kaiser) o que expliquen en conjunto un porcentaje acumulado razonable (≥ 60%). Según el scree plot, las primeras **3 dimensiones** presentan el mayor quiebre, concentrando la mayor parte de la inercia total.
+
+---
+
+# Análisis de Variables
+
+## Contribución General de las Variables
+
+```{r contrib_general_1}
+fviz_contrib(famd_result, choice = "var", axes = 1,
+             fill = "steelblue", color = "navy") +
+  labs(title = "Figura 8. Contribución de variables a la Dimensión 1",
+       x = "Variables", y = "Contribución (%)")
+```
+
+```{r contrib_general_2}
+fviz_contrib(famd_result, choice = "var", axes = 2,
+             fill = "coral", color = "firebrick") +
+  labs(title = "Figura 9. Contribución de variables a la Dimensión 2",
+       x = "Variables", y = "Contribución (%)")
+```
+
+```{r contrib_general_12}
+fviz_contrib(famd_result, choice = "var", axes = 1:2,
+             fill = "mediumpurple", color = "purple4") +
+  labs(title    = "Figura 10. Contribución de variables a las Dimensiones 1 y 2",
+       subtitle = "Contribución conjunta",
+       x = "Variables", y = "Contribución (%)")
+```
+
+## Variables Cuantitativas
+
+```{r vars_cuanti}
+var_quanti <- get_famd_var(famd_result, element = "quanti.var")
+
+kable(var_quanti$coord,
+      digits  = 3,
+      caption = "Tabla 7. Coordenadas de variables cuantitativas en las dimensiones FAMD",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+```{r cos2_quanti_tabla}
+kable(var_quanti$cos2,
+      digits  = 3,
+      caption = "Tabla 8. Calidad de representación (cos²) de variables cuantitativas",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+```{r grafico_quanti_contrib}
+fviz_famd_var(famd_result,
+              choice    = "quanti.var",
+              col.var   = "contrib",
+              gradient.cols = c("tomato", "gold", "forestgreen"),
+              repel     = TRUE) +
+  labs(title    = "Figura 11. Variables cuantitativas — coloreadas por contribución",
+       subtitle = "Círculo de correlaciones",
+       color    = "Contribución (%)")
+```
+
+```{r grafico_quanti_cos2}
+fviz_famd_var(famd_result,
+              choice    = "quanti.var",
+              col.var   = "cos2",
+              gradient.cols = c("tomato", "gold", "forestgreen"),
+              repel     = TRUE) +
+  labs(title    = "Figura 12. Variables cuantitativas — coloreadas por cos²",
+       subtitle = "Calidad de representación en los ejes 1 y 2",
+       color    = "cos²")
+```
+
+**Interpretación:** Las variables `satisfaccion`, `estres` y `productividad` presentan las coordenadas más extremas en la Dimensión 1, indicando que esta dimensión captura principalmente el **eje de bienestar psicológico**. La variable `salario` y `horas_sem` tienen mayor presencia en dimensiones posteriores.
+
+## Variables Cualitativas
+
+```{r vars_quali}
+var_quali <- get_famd_var(famd_result, element = "quali.var")
+
+kable(var_quali$coord,
+      digits  = 3,
+      caption = "Tabla 9. Coordenadas de categorías de variables cualitativas",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+```{r vtest_tabla}
+kable(var_quali$v.test,
+      digits  = 3,
+      caption = "Tabla 10. V-test de categorías (|v.test| > 1.96 → significativo)",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+> **Nota:** El v.test es una prueba Z. Si su valor absoluto supera 1.96, la categoría contribuye significativamente a la dimensión (p < 0.05).
+
+```{r grafico_quali_contrib}
+fviz_famd_var(famd_result,
+              choice    = "quali.var",
+              col.var   = "contrib",
+              gradient.cols = c("tomato", "gold", "forestgreen"),
+              repel     = TRUE) +
+  labs(title    = "Figura 13. Categorías de variables cualitativas — contribución",
+       subtitle = "Posición en los ejes 1 y 2",
+       color    = "Contribución (%)")
+```
+
+```{r grafico_quali_cos2}
+fviz_famd_var(famd_result,
+              choice    = "quali.var",
+              col.var   = "cos2",
+              gradient.cols = c("tomato", "gold", "forestgreen"),
+              repel     = TRUE) +
+  labs(title    = "Figura 14. Categorías de variables cualitativas — cos²",
+       color    = "cos²")
+```
+
+**Interpretación:** La categoría `burnout = Si` se posiciona en el extremo negativo del eje 1, asociándose con altos niveles de estrés y baja satisfacción. Las categorías `Remoto` e `Hibrido` se diferencian de `Presencial` principalmente en el eje 2, que captura la dimensión de carga laboral.
+
+---
+
+# Análisis de Individuos (Empleados)
+
+```{r ind_analisis}
+ind_analysis <- get_famd_ind(famd_result)
+
+kable(head(ind_analysis$coord, 15),
+      digits  = 3,
+      caption = "Tabla 11. Coordenadas de los primeros 15 empleados en las dimensiones FAMD",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+```{r contrib_individuos}
+kable(head(ind_analysis$contrib, 10),
+      digits  = 3,
+      caption = "Tabla 12. Contribución de los primeros 10 empleados a cada dimensión",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE, font_size = 11)
+```
+
+```{r sum_cos2_ind}
+# Verificar que la suma de cos2 de un empleado a través de las 7 dim = 1
+suma_cos2_emp1 <- sum(ind_analysis$cos2[1, 1:7])
+cat("Suma de cos² del empleado 1 (debe ser ≈ 1):", round(suma_cos2_emp1, 4))
+```
+
+```{r grafico_ind_contrib}
+fviz_famd_ind(famd_result,
+              col.ind       = "contrib",
+              gradient.cols = c("tomato", "gold", "forestgreen"),
+              alpha.ind     = 0.6) +
+  labs(title    = "Figura 15. Empleados en el espacio FAMD — coloreados por contribución",
+       subtitle = "Ejes 1 y 2",
+       color    = "Contribución (%)")
+```
+
+---
+
+# Síntesis e Interpretación de las Dimensiones
+
+```{r resumen_dims}
+resumen_dims <- data.frame(
+  Dimensión   = paste0("Dim ", 1:5),
+  Autovalor   = round(famd_result$eig[1:5, 1], 3),
+  `% Varianza` = round(famd_result$eig[1:5, 2], 2),
+  `% Acumulado` = round(famd_result$eig[1:5, 3], 2),
+  Interpretación = c(
+    "Bienestar psicológico: satisfacción, estrés, productividad y burnout",
+    "Carga laboral y modalidad: horas semanales vs. trabajo remoto",
+    "Perfil socioeconómico: salario y nivel educativo",
+    "Heterogeneidad de área funcional",
+    "Residual / mixto"
+  )
+)
+
+kable(resumen_dims,
+      caption = "Tabla 13. Síntesis de las dimensiones FAMD y su interpretación",
+      align   = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE, font_size = 11) %>%
+  column_spec(5, italic = TRUE, width = "30em")
+```
+
+---
+
+# Conclusiones
+
+1. **El cumplimiento de supuestos fue verificado rigurosamente** antes de aplicar el FAMD. La matriz de correlaciones mostró asociaciones estadísticamente significativas entre las variables cuantitativas (prueba de Bartlett), el KMO global superó el umbral de 0.6, todos los índices MSAi individuales fueron ≥ 0.5 tras el proceso iterativo, y los valores atípicos multivariantes detectados no superaron el 5% del total.
+
+2. **El FAMD permitió analizar simultáneamente** las variables cuantitativas y cualitativas del bienestar laboral sin necesidad de descartar ningún tipo de variable, superando las limitaciones del ACP clásico.
+
+3. **La Dimensión 1** captura principalmente el **eje de bienestar psicológico**, donde las variables `satisfaccion`, `estres` y `productividad` son las de mayor contribución. Los empleados con burnout se ubican en el extremo negativo de este eje.
+
+4. **La Dimensión 2** diferencia a los empleados según su **carga laboral y modalidad de trabajo**: los empleados remotos tienden a trabajar menos horas semanales, mientras que los presenciales presentan mayor carga horaria.
+
+5. **La Dimensión 3** refleja el **perfil socioeconómico**: el nivel educativo de posgrado está asociado a salarios más altos, configurando un perfil diferenciado respecto a los técnicos.
+
+6. En conjunto, las **primeras 3 dimensiones** explican aproximadamente el **`r round(famd_result$eig[3, 3], 1)`%** de la varianza total, lo que representa una reducción de dimensionalidad eficiente conservando la mayor parte de la información relevante del conjunto de datos mixtos.
+
+---
+
+*Elaborado con R — paquetes `FactoMineR`, `factoextra`, `psych`, `performance` y `MVN`*

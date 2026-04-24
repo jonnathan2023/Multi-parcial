@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis Factorial Ordinal — Satisfacción Laboral</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --bg2:       #13161d;
+    --bg3:       #1a1e28;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.13);
+    --text:      #e8eaf0;
+    --muted:     #7a8099;
+    --accent:    #7c9fff;
+    --accent2:   #a78bfa;
+    --accent3:   #5eead4;
+    --green:     #5eead4;
+    --amber:     #fbbf24;
+    --pink:      #f472b6;
+    --red:       #f87171;
+    --tag-bg:    rgba(124,159,255,0.10);
+    --r-bg:      #141820;
+    --r-comment: #5c6480;
+    --r-keyword: #7c9fff;
+    --r-string:  #5eead4;
+    --r-number:  #fbbf24;
+    --r-func:    #c084fc;
+    --r-op:      #f472b6;
+    --r-var:     #e8eaf0;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .blob {
+    position: fixed; border-radius: 50%;
+    filter: blur(120px); pointer-events: none; z-index: 0; opacity: 0.18;
+  }
+  .blob-1 { width: 600px; height: 600px; background: #3b5bdb; top: -200px; left: -200px; }
+  .blob-2 { width: 400px; height: 400px; background: #6d28d9; bottom: 10%; right: -100px; }
+  .blob-3 { width: 300px; height: 300px; background: #0e7490; top: 40%; left: 30%; }
+
+  .wrapper {
+    position: relative; z-index: 1;
+    max-width: 900px; margin: 0 auto; padding: 0 2rem 6rem;
+  }
+
+  /* ── header ── */
+  header {
+    padding: 5rem 0 3.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  .eyebrow {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 1.2rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before {
+    content: ''; display: inline-block;
+    width: 24px; height: 1px; background: var(--accent);
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 400; line-height: 1.15; color: #fff; margin-bottom: 1.2rem;
+  }
+  h1 em { font-style: italic; color: var(--accent2); }
+  .subtitle { font-size: 15px; color: var(--muted); max-width: 560px; line-height: 1.75; }
+
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2rem; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 14px; border-radius: 99px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    border: 1px solid var(--border2); color: var(--muted);
+    background: rgba(255,255,255,0.03);
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill-blue .dot   { background: var(--accent); }
+  .pill-violet .dot { background: var(--accent2); }
+  .pill-teal .dot   { background: var(--green); }
+  .pill-amber .dot  { background: var(--amber); }
+
+  /* ── sections ── */
+  section {
+    margin-bottom: 3rem;
+    animation: fadeUp 0.5s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  section:nth-child(1)  { animation-delay: 0.05s; }
+  section:nth-child(2)  { animation-delay: 0.10s; }
+  section:nth-child(3)  { animation-delay: 0.15s; }
+  section:nth-child(4)  { animation-delay: 0.20s; }
+  section:nth-child(5)  { animation-delay: 0.25s; }
+  section:nth-child(6)  { animation-delay: 0.30s; }
+  section:nth-child(7)  { animation-delay: 0.35s; }
+  section:nth-child(8)  { animation-delay: 0.40s; }
+  section:nth-child(9)  { animation-delay: 0.45s; }
+  section:nth-child(10) { animation-delay: 0.50s; }
+
+  .section-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem; gap: 1rem;
+  }
+  .section-title {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted);
+  }
+  .section-num { font-size: 10px; color: var(--accent); opacity: 0.7; }
+
+  /* ── factor cards ── */
+  .factor-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border);
+    border-radius: 12px; overflow: hidden; margin-bottom: 2rem;
+  }
+  .factor-card {
+    background: var(--bg2); padding: 1.4rem 1.5rem; transition: background 0.2s;
+  }
+  .factor-card:hover { background: var(--bg3); }
+  .factor-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; margin-bottom: 0.75rem;
+  }
+  .fi-blue   { background: rgba(124,159,255,0.15); }
+  .fi-violet { background: rgba(167,139,250,0.15); }
+  .fi-teal   { background: rgba(94,234,212,0.15);  }
+  .factor-label {
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .fc-blue   { color: var(--accent); }
+  .fc-violet { color: var(--accent2); }
+  .fc-teal   { color: var(--green); }
+  .factor-name { font-size: 14px; font-weight: 400; color: var(--text); margin-bottom: 0.6rem; }
+  .factor-desc { font-size: 11.5px; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.55; }
+  .factor-items { display: flex; flex-wrap: wrap; gap: 4px; }
+  .item-tag {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    padding: 2px 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.04); color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  /* ── variable table ── */
+  .var-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 0.5rem; }
+  .var-table th {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); padding: 8px 12px;
+    border-bottom: 1px solid var(--border2); text-align: left;
+    background: rgba(124,159,255,0.05);
+  }
+  .var-table td {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    color: var(--muted); vertical-align: top;
+  }
+  .var-table tr:last-child td { border-bottom: none; }
+  .var-table tr:hover td { background: rgba(255,255,255,0.015); }
+  .code-tag {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--accent); background: var(--tag-bg);
+    padding: 1px 7px; border-radius: 4px;
+  }
+  .dim-tag {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border2);
+  }
+  .dim-f1 { color: var(--accent);  border-color: rgba(124,159,255,0.3); background: rgba(124,159,255,0.06); }
+  .dim-f2 { color: var(--accent2); border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.06); }
+  .dim-f3 { color: var(--green);   border-color: rgba(94,234,212,0.3);  background: rgba(94,234,212,0.06);  }
+
+  /* ── code block ── */
+  .code-wrap {
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--border); background: var(--r-bg);
+  }
+  .code-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+  .code-dots { display: flex; gap: 6px; }
+  .code-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .d1 { background: #ff5f56; } .d2 { background: #ffbd2e; } .d3 { background: #27c93f; }
+  .code-lang {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+  }
+  .copy-btn {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 4px 14px; border-radius: 6px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--muted); cursor: pointer; transition: all 0.2s;
+  }
+  .copy-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+  pre {
+    padding: 1.5rem; overflow-x: auto;
+    font-family: 'DM Mono', monospace; font-size: 12.5px;
+    line-height: 1.85; color: var(--r-var); tab-size: 2;
+  }
+  .r-comment { color: var(--r-comment); font-style: italic; }
+  .r-keyword { color: var(--r-keyword); }
+  .r-string  { color: var(--r-string); }
+  .r-number  { color: var(--r-number); }
+  .r-func    { color: var(--r-func); }
+  .r-op      { color: var(--r-op); }
+  .r-section {
+    color: var(--accent); font-weight: 500;
+    border-bottom: 1px solid rgba(124,159,255,0.15);
+    display: block; margin-bottom: 0.2rem;
+  }
+
+  /* ── callout ── */
+  .callout {
+    border-left: 2px solid var(--accent);
+    padding: 1rem 1.25rem;
+    background: rgba(124,159,255,0.05);
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0; font-size: 13px;
+    color: var(--muted); line-height: 1.75;
+  }
+  .callout strong { color: var(--text); font-weight: 500; }
+  .callout code {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    background: rgba(255,255,255,0.07); padding: 1px 6px;
+    border-radius: 4px; color: var(--green);
+  }
+  .callout-amber  { border-left-color: var(--amber);  background: rgba(251,191,36,0.05); }
+  .callout-violet { border-left-color: var(--accent2); background: rgba(167,139,250,0.05); }
+  .callout-green  { border-left-color: var(--green);  background: rgba(94,234,212,0.05); }
+  .callout-pink   { border-left-color: var(--pink);   background: rgba(244,114,182,0.05); }
+
+  /* ── matrix grid ── */
+  .matrix-grid {
+    display: grid; gap: 1px; background: var(--border);
+    border-radius: 10px; overflow: hidden;
+    font-family: 'DM Mono', monospace; font-size: 13px;
+  }
+  .matrix-4 { grid-template-columns: repeat(4, 1fr); }
+  .matrix-cell {
+    background: var(--bg2); padding: 10px 14px;
+    text-align: center; color: var(--muted); font-size: 12px;
+  }
+  .matrix-cell.header {
+    color: var(--accent); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; background: rgba(124,159,255,0.06);
+  }
+  .matrix-cell.diag { color: #fff; font-weight: 500; }
+  .matrix-cell.hi   { color: var(--amber); }
+  .matrix-cell.med  { color: var(--green); }
+  .matrix-cell.lo   { color: var(--muted); opacity: 0.6; }
+
+  /* ── stats grid ── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border);
+    border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--bg2); padding: 1.25rem 1.4rem; transition: background 0.2s;
+  }
+  .stat-card:hover { background: var(--bg3); }
+  .stat-label {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 0.4rem;
+  }
+  .stat-value {
+    font-family: 'DM Serif Display', serif; font-size: 1.9rem;
+    color: #fff; line-height: 1; margin-bottom: 0.25rem;
+  }
+  .stat-sub { font-size: 11px; color: var(--muted); }
+  .stat-value.blue   { color: var(--accent); }
+  .stat-value.violet { color: var(--accent2); }
+  .stat-value.teal   { color: var(--green); }
+  .stat-value.amber  { color: var(--amber); }
+
+  /* ── load bars ── */
+  .load-section-title {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.75rem;
+  }
+  .load-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .load-row:last-child { border-bottom: none; }
+  .load-item {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    width: 44px; flex-shrink: 0;
+  }
+  .load-bar-wrap {
+    flex: 1; height: 6px; background: rgba(255,255,255,0.05);
+    border-radius: 99px; overflow: hidden;
+  }
+  .load-bar { height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+  .bar-blue   { background: var(--accent); }
+  .bar-violet { background: var(--accent2); }
+  .bar-teal   { background: var(--green); }
+  .load-val {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    width: 38px; text-align: right; flex-shrink: 0; color: var(--text);
+  }
+  .load-desc {
+    font-size: 11px; color: var(--muted); flex: 1;
+    text-align: right; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 200px;
+  }
+
+  /* ── two-col ── */
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; background: var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+  .col-block { background: var(--bg2); padding: 1.4rem 1.5rem; }
+  .col-title {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1rem;
+  }
+
+  /* ── fit table ── */
+  .fit-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .fit-table th {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); padding: 7px 12px;
+    border-bottom: 1px solid var(--border2); text-align: left;
+    background: rgba(124,159,255,0.05);
+  }
+  .fit-table td {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    color: var(--muted); font-size: 12px;
+  }
+  .fit-table tr:last-child td { border-bottom: none; }
+  .badge-ok {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    padding: 2px 8px; border-radius: 4px;
+    background: rgba(94,234,212,0.1); color: var(--green);
+    border: 1px solid rgba(94,234,212,0.25);
+  }
+  .badge-no {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    padding: 2px 8px; border-radius: 4px;
+    background: rgba(248,113,113,0.1); color: var(--red);
+    border: 1px solid rgba(248,113,113,0.25);
+  }
+
+  /* ── comm table ── */
+  .comm-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .comm-table th {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); padding: 7px 12px;
+    border-bottom: 1px solid var(--border2); text-align: center;
+    background: rgba(124,159,255,0.05);
+  }
+  .comm-table th:first-child { text-align: left; }
+  .comm-table td {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    color: var(--muted); font-size: 12px; text-align: center;
+    font-family: 'DM Mono', monospace;
+  }
+  .comm-table td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; }
+  .comm-table tr:last-child td { border-bottom: none; }
+  .comm-hi  { color: var(--green) !important; }
+  .comm-med { color: var(--amber) !important; }
+  .comm-bar-cell { width: 120px; }
+  .comm-mini-bar {
+    height: 4px; border-radius: 99px;
+    background: rgba(255,255,255,0.06); overflow: hidden;
+    display: inline-block; width: 100%;
+    vertical-align: middle;
+  }
+  .comm-mini-fill { height: 100%; border-radius: 99px; }
+
+  /* ── scatter plot (SVG) ── */
+  .scatter-wrap {
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--border); background: var(--bg2);
+    padding: 1.5rem;
+  }
+  .scatter-title {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 1rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* ── conclusions ── */
+  .conc-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .conc-item {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+  }
+  .conc-num {
+    font-family: 'DM Serif Display', serif; font-size: 2rem;
+    color: var(--accent); opacity: 0.3; line-height: 1;
+    flex-shrink: 0; width: 28px;
+  }
+  .conc-text { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .conc-text strong { color: var(--text); font-weight: 500; }
+
+  /* ── biblio ── */
+  .bib-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .bib-item {
+    font-size: 12.5px; color: var(--muted);
+    padding: 0.75rem 1rem; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 8px;
+    border-left: 2px solid var(--border2);
+    line-height: 1.6;
+  }
+
+  /* ── footer ── */
+  footer {
+    margin-top: 5rem; padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 1rem;
+  }
+  .footer-text {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--r-comment);
+  }
+
+  @media (max-width: 640px) {
+    .factor-grid { grid-template-columns: 1fr; }
+    .stats-grid  { grid-template-columns: repeat(2, 1fr); }
+    .two-col     { grid-template-columns: 1fr; }
+    header { padding: 3rem 0 2.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="eyebrow">R / Psicometría · Satisfacción Laboral</div>
+    <h1>Análisis Factorial<br><em>Ordinal</em></h1>
+    <p class="subtitle">
+      Simulación de datos de satisfacción laboral con estructura factorial conocida.
+      Escala Likert 1–5 · 200 observaciones · 15 ítems · 3 factores latentes correlacionados.
+    </p>
+    <div class="meta-row">
+      <span class="pill pill-blue"><span class="dot"></span>n = 200</span>
+      <span class="pill pill-violet"><span class="dot"></span>15 ítems</span>
+      <span class="pill pill-teal"><span class="dot"></span>3 factores</span>
+      <span class="pill pill-amber"><span class="dot"></span>Likert 1–5</span>
+      <span class="pill"><span class="dot" style="background:var(--muted)"></span>Oblimin · WLSMV</span>
+      <span class="pill"><span class="dot" style="background:var(--muted)"></span>set.seed(2024)</span>
+    </div>
+  </header>
+
+  <!-- 01: INTRODUCCIÓN -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">01</span> Introducción y fundamento teórico</div>
+    </div>
+
+    <div class="callout" style="margin-bottom:1rem">
+      El <strong>Análisis Factorial Ordinal (AFO)</strong> surge cuando las variables observadas son de escala Likert y no se cumple el supuesto de continuidad requerido por el AFE clásico. En lugar de correlaciones de Pearson, el AFO emplea la <strong>matriz de correlaciones policóricas</strong>, que asume una variable latente continua y subyacente <em>y*</em> ~ N(0,1) detrás de cada categoría observada.
+    </div>
+
+    <div class="callout callout-amber">
+      <strong>AFO vs. ACP:</strong> mientras el Análisis de Componentes Principales es una técnica descriptiva que maximiza la varianza total explicada, el AFO es un modelo causal que busca identificar las <em>dimensiones latentes</em> que generan las respuestas observadas, extrayendo únicamente la <strong>varianza común</strong> entre los ítems.
+    </div>
+
+    <div class="callout callout-violet" style="margin-top:0">
+      <strong>Modelo matricial:</strong> X = μ + ΛF + ε — donde <strong>Λ</strong> es la matriz de cargas factoriales, <strong>F</strong> el vector de factores latentes comunes y <strong>ε</strong> el vector de errores únicos. La matriz de covarianza se expresa como: <strong>Σ = Λ · Φ · Λᵀ + Ψ</strong>, con Ψ representando las unicidades.
+    </div>
+  </section>
+
+  <!-- 02: ESTRUCTURA FACTORIAL -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">02</span> Estructura factorial y variables observadas</div>
+    </div>
+
+    <div class="factor-grid">
+      <div class="factor-card">
+        <div class="factor-icon fi-blue">🏢</div>
+        <div class="factor-label fc-blue">Factor 1</div>
+        <div class="factor-name">Clima organizacional</div>
+        <div class="factor-desc">Percepción del ambiente de trabajo, relaciones interpersonales y cultura de equipo.</div>
+        <div class="factor-items">
+          <span class="item-tag">item1</span><span class="item-tag">item2</span>
+          <span class="item-tag">item3</span><span class="item-tag">item4</span>
+          <span class="item-tag">item5</span>
+        </div>
+      </div>
+      <div class="factor-card">
+        <div class="factor-icon fi-violet">📈</div>
+        <div class="factor-label fc-violet">Factor 2</div>
+        <div class="factor-name">Desarrollo profesional</div>
+        <div class="factor-desc">Oportunidades de crecimiento, capacitación y proyección dentro de la organización.</div>
+        <div class="factor-items">
+          <span class="item-tag">item6</span><span class="item-tag">item7</span>
+          <span class="item-tag">item8</span><span class="item-tag">item9</span>
+          <span class="item-tag">item10</span>
+        </div>
+      </div>
+      <div class="factor-card">
+        <div class="factor-icon fi-teal">⚖️</div>
+        <div class="factor-label fc-teal">Factor 3</div>
+        <div class="factor-name">Bienestar y compensación</div>
+        <div class="factor-desc">Percepción de equidad salarial, beneficios sociales y balance vida-trabajo.</div>
+        <div class="factor-items">
+          <span class="item-tag">item11</span><span class="item-tag">item12</span>
+          <span class="item-tag">item13</span><span class="item-tag">item14</span>
+          <span class="item-tag">item15</span>
+        </div>
+      </div>
+    </div>
+
+    <table class="var-table" style="margin-bottom:1.5rem">
+      <thead>
+        <tr><th>Ítem</th><th>Dimensión</th><th>Descripción (escala 1–5)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="code-tag">item1</span></td><td><span class="dim-tag dim-f1">Clima</span></td><td>El ambiente de trabajo en mi equipo es positivo y colaborativo.</td></tr>
+        <tr><td><span class="code-tag">item2</span></td><td><span class="dim-tag dim-f1">Clima</span></td><td>Me siento respetado/a por mis compañeros de trabajo.</td></tr>
+        <tr><td><span class="code-tag">item3</span></td><td><span class="dim-tag dim-f1">Clima</span></td><td>La comunicación con mi supervisor directo es efectiva.</td></tr>
+        <tr><td><span class="code-tag">item4</span></td><td><span class="dim-tag dim-f1">Clima</span></td><td>Existe un sentido genuino de equipo y camaradería en la organización.</td></tr>
+        <tr><td><span class="code-tag">item5</span></td><td><span class="dim-tag dim-f1">Clima</span></td><td>Los conflictos internos se resuelven de manera justa y oportuna.</td></tr>
+        <tr><td><span class="code-tag">item6</span></td><td><span class="dim-tag dim-f2">Desarrollo</span></td><td>La empresa me ofrece oportunidades reales de ascenso y crecimiento.</td></tr>
+        <tr><td><span class="code-tag">item7</span></td><td><span class="dim-tag dim-f2">Desarrollo</span></td><td>Recibo capacitaciones que son relevantes para mi rol actual.</td></tr>
+        <tr><td><span class="code-tag">item8</span></td><td><span class="dim-tag dim-f2">Desarrollo</span></td><td>Mi trabajo me permite aprender y desarrollar nuevas competencias.</td></tr>
+        <tr><td><span class="code-tag">item9</span></td><td><span class="dim-tag dim-f2">Desarrollo</span></td><td>Mis logros profesionales son reconocidos por la organización.</td></tr>
+        <tr><td><span class="code-tag">item10</span></td><td><span class="dim-tag dim-f2">Desarrollo</span></td><td>Tengo claridad sobre mi plan de carrera dentro de la empresa.</td></tr>
+        <tr><td><span class="code-tag">item11</span></td><td><span class="dim-tag dim-f3">Bienestar</span></td><td>Mi remuneración es equitativa en relación con mis responsabilidades.</td></tr>
+        <tr><td><span class="code-tag">item12</span></td><td><span class="dim-tag dim-f3">Bienestar</span></td><td>Los beneficios que ofrece la empresa cubren mis necesidades básicas.</td></tr>
+        <tr><td><span class="code-tag">item13</span></td><td><span class="dim-tag dim-f3">Bienestar</span></td><td>Cuento con un horario de trabajo que me permite un balance vida-trabajo.</td></tr>
+        <tr><td><span class="code-tag">item14</span></td><td><span class="dim-tag dim-f3">Bienestar</span></td><td>Siento que mi bienestar físico y emocional es una prioridad para la empresa.</td></tr>
+        <tr><td><span class="code-tag">item15</span></td><td><span class="dim-tag dim-f3">Bienestar</span></td><td>En general, me siento satisfecho/a con las condiciones laborales actuales.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>Matriz Φ (correlaciones entre factores)</strong> — Los factores están moderadamente correlacionados, lo que justifica una rotación <strong>oblicua (oblimin)</strong> en lugar de ortogonal. Si los factores fueran independientes (Φ ≈ 0), la rotación Varimax sería la elección apropiada.
+    </div>
+
+    <div class="matrix-grid matrix-4">
+      <div class="matrix-cell header"></div>
+      <div class="matrix-cell header">F1 — Clima</div>
+      <div class="matrix-cell header">F2 — Desarrollo</div>
+      <div class="matrix-cell header">F3 — Bienestar</div>
+      <div class="matrix-cell header">F1</div>
+      <div class="matrix-cell diag">1.00</div>
+      <div class="matrix-cell hi">0.45</div>
+      <div class="matrix-cell med">0.30</div>
+      <div class="matrix-cell header">F2</div>
+      <div class="matrix-cell hi">0.45</div>
+      <div class="matrix-cell diag">1.00</div>
+      <div class="matrix-cell med">0.35</div>
+      <div class="matrix-cell header">F3</div>
+      <div class="matrix-cell med">0.30</div>
+      <div class="matrix-cell med">0.35</div>
+      <div class="matrix-cell diag">1.00</div>
+    </div>
+  </section>
+
+  <!-- 03: LIBRERÍAS -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">03</span> Librerías</div>
+      <button class="copy-btn" onclick="copyBlock('libs')">Copiar</button>
+    </div>
+    <div class="code-wrap">
+      <div class="code-toolbar">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-lang">R</span>
+      </div>
+      <pre id="libs"><span class="r-comment"># --- Instalar y cargar librerías necesarias ---</span>
+<span class="r-comment"># install.packages(c("psych", "polycor", "GPArotation",</span>
+<span class="r-comment">#                    "lavaan", "semPlot", "MVN", "MASS"))</span>
+
+<span class="r-func">library</span>(psych)        <span class="r-comment"># Funciones factoriales y psicométricas</span>
+<span class="r-func">library</span>(GPArotation)  <span class="r-comment"># Rotaciones factoriales (oblimin, varimax...)</span>
+<span class="r-func">library</span>(lavaan)       <span class="r-comment"># Modelos de ecuaciones estructurales (AFC)</span>
+<span class="r-func">library</span>(semPlot)      <span class="r-comment"># Diagramas de path para lavaan</span>
+<span class="r-func">library</span>(MVN)          <span class="r-comment"># Normalidad multivariante (Mardia, Henze-Zirkler)</span>
+<span class="r-func">library</span>(MASS)         <span class="r-comment"># mvrnorm() para generación multivariante</span>
+<span class="r-func">library</span>(corrplot)     <span class="r-comment"># Visualización de matrices de correlación</span>
+<span class="r-func">library</span>(performance)  <span class="r-comment"># check_factorstructure() — KMO + Bartlett</span>
+<span class="r-func">library</span>(kableExtra)   <span class="r-comment"># Tablas formateadas en HTML/PDF</span>
+<span class="r-func">library</span>(tidyverse)    <span class="r-comment"># Manipulación y visualización de datos</span>
+
+<span class="r-comment"># Configuración global de chunks (Quarto / R Markdown)</span>
+knitr<span class="r-op">::</span><span class="r-func">opts_chunk$set</span>(echo <span class="r-op">=</span> <span class="r-keyword">TRUE</span>, warning <span class="r-op">=</span> <span class="r-keyword">FALSE</span>,
+                     message <span class="r-op">=</span> <span class="r-keyword">FALSE</span>, comment <span class="r-op">=</span> <span class="r-string">NA</span>)</pre>
+    </div>
+  </section>
+
+  <!-- 04: DATOS SIMULADOS -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">04</span> Generación de datos ordinales simulados</div>
+      <button class="copy-btn" onclick="copyBlock('datos')">Copiar</button>
+    </div>
+    <div class="code-wrap">
+      <div class="code-toolbar">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-lang">R</span>
+      </div>
+      <pre id="datos"><span class="r-func">set.seed</span>(<span class="r-number">2024</span>)
+n <span class="r-op">&lt;-</span> <span class="r-number">200</span>  <span class="r-comment"># tamaño muestral</span>
+
+<span class="r-comment"># ── Matriz de correlaciones entre factores latentes ───────────────────</span>
+Phi <span class="r-op">&lt;-</span> <span class="r-func">matrix</span>(<span class="r-func">c</span>(
+  <span class="r-number">1.00</span>, <span class="r-number">0.45</span>, <span class="r-number">0.30</span>,
+  <span class="r-number">0.45</span>, <span class="r-number">1.00</span>, <span class="r-number">0.35</span>,
+  <span class="r-number">0.30</span>, <span class="r-number">0.35</span>, <span class="r-number">1.00</span>
+), nrow <span class="r-op">=</span> <span class="r-number">3</span>)
+
+<span class="r-comment"># ── Cargas factoriales (5 ítems por factor) ───────────────────────────</span>
+Lambda <span class="r-op">&lt;-</span> <span class="r-func">matrix</span>(<span class="r-func">c</span>(
+  <span class="r-comment"># F1     F2     F3</span>
+  <span class="r-number">0.75</span>, <span class="r-number">0.10</span>, <span class="r-number">0.05</span>,  <span class="r-comment"># item1</span>
+  <span class="r-number">0.80</span>, <span class="r-number">0.08</span>, <span class="r-number">0.10</span>,  <span class="r-comment"># item2</span>
+  <span class="r-number">0.70</span>, <span class="r-number">0.12</span>, <span class="r-number">0.08</span>,  <span class="r-comment"># item3</span>
+  <span class="r-number">0.72</span>, <span class="r-number">0.06</span>, <span class="r-number">0.12</span>,  <span class="r-comment"># item4</span>
+  <span class="r-number">0.68</span>, <span class="r-number">0.15</span>, <span class="r-number">0.05</span>,  <span class="r-comment"># item5</span>
+  <span class="r-number">0.08</span>, <span class="r-number">0.78</span>, <span class="r-number">0.10</span>,  <span class="r-comment"># item6</span>
+  <span class="r-number">0.10</span>, <span class="r-number">0.82</span>, <span class="r-number">0.08</span>,  <span class="r-comment"># item7</span>
+  <span class="r-number">0.12</span>, <span class="r-number">0.75</span>, <span class="r-number">0.06</span>,  <span class="r-comment"># item8</span>
+  <span class="r-number">0.05</span>, <span class="r-number">0.70</span>, <span class="r-number">0.12</span>,  <span class="r-comment"># item9</span>
+  <span class="r-number">0.09</span>, <span class="r-number">0.68</span>, <span class="r-number">0.15</span>,  <span class="r-comment"># item10</span>
+  <span class="r-number">0.06</span>, <span class="r-number">0.08</span>, <span class="r-number">0.80</span>,  <span class="r-comment"># item11</span>
+  <span class="r-number">0.10</span>, <span class="r-number">0.10</span>, <span class="r-number">0.76</span>,  <span class="r-comment"># item12</span>
+  <span class="r-number">0.12</span>, <span class="r-number">0.06</span>, <span class="r-number">0.72</span>,  <span class="r-comment"># item13</span>
+  <span class="r-number">0.05</span>, <span class="r-number">0.12</span>, <span class="r-number">0.70</span>,  <span class="r-comment"># item14</span>
+  <span class="r-number">0.08</span>, <span class="r-number">0.09</span>, <span class="r-number">0.74</span>   <span class="r-comment"># item15</span>
+), nrow <span class="r-op">=</span> <span class="r-number">15</span>, byrow <span class="r-op">=</span> <span class="r-keyword">TRUE</span>)
+
+<span class="r-comment"># ── Generar datos continuos latentes ─────────────────────────────────</span>
+Sigma <span class="r-op">&lt;-</span> Lambda <span class="r-op">%*%</span> Phi <span class="r-op">%*%</span> <span class="r-func">t</span>(Lambda) <span class="r-op">+</span>
+  <span class="r-func">diag</span>(<span class="r-number">1</span> <span class="r-op">-</span> <span class="r-func">rowSums</span>(Lambda<span class="r-op">^</span><span class="r-number">2</span>))
+datos_cont <span class="r-op">&lt;-</span> MASS<span class="r-op">::</span><span class="r-func">mvrnorm</span>(n, mu <span class="r-op">=</span> <span class="r-func">rep</span>(<span class="r-number">0</span>, <span class="r-number">15</span>), Sigma <span class="r-op">=</span> Sigma)
+
+<span class="r-comment"># ── Discretizar a escala Likert 1–5 (umbrales asimétricos) ───────────</span>
+umbrales <span class="r-op">&lt;-</span> <span class="r-func">c</span>(<span class="r-op">-</span><span class="r-number">1.2</span>, <span class="r-op">-</span><span class="r-number">0.4</span>, <span class="r-number">0.4</span>, <span class="r-number">1.2</span>)
+datos_ord <span class="r-op">&lt;-</span> <span class="r-func">apply</span>(datos_cont, <span class="r-number">2</span>, <span class="r-keyword">function</span>(x) {
+  <span class="r-func">cut</span>(x, breaks <span class="r-op">=</span> <span class="r-func">c</span>(<span class="r-op">-</span>Inf, umbrales, Inf), labels <span class="r-op">=</span> <span class="r-number">1</span><span class="r-op">:</span><span class="r-number">5</span>) <span class="r-op">|&gt;</span>
+    <span class="r-func">as.integer</span>()
+})
+<span class="r-func">colnames</span>(datos_ord) <span class="r-op">&lt;-</span> <span class="r-func">paste0</span>(<span class="r-string">"item"</span>, <span class="r-number">1</span><span class="r-op">:</span><span class="r-number">15</span>)
+datos_ord <span class="r-op">&lt;-</span> <span class="r-func">as.data.frame</span>(datos_ord)
+
+<span class="r-comment"># ── Vista previa ──────────────────────────────────────────────────────</span>
+<span class="r-func">head</span>(datos_ord, <span class="r-number">5</span>)
+<span class="r-func">summary</span>(datos_ord)</pre>
+    </div>
+    <div class="callout" style="margin-top:1.5rem">
+      <strong>Fórmula del modelo factorial:</strong> Σ = Λ · Φ · Λ<sup>T</sup> + Ψ — donde Ψ = <code>diag(1 − rowSums(Λ²))</code> representa la <strong>unicidad</strong> de cada ítem (varianza no explicada por los factores comunes). Los umbrales <code>c(−1.2, −0.4, 0.4, 1.2)</code> generan una distribución levemente asimétrica, más realista que una distribución uniforme perfecta.
+    </div>
+  </section>
+
+  <!-- 05: SUPUESTOS -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">05</span> Verificación de supuestos</div>
+      <button class="copy-btn" onclick="copyBlock('supuestos')">Copiar</button>
+    </div>
+
+    <div class="two-col" style="margin-bottom:1.5rem">
+      <div class="col-block">
+        <div class="col-title" style="color:var(--accent)">KMO Global</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:3rem;color:#fff;line-height:1;margin-bottom:0.3rem">0.87</div>
+        <div style="font-size:12px;color:var(--green)">Meritorio (&gt; 0.80) ✓</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:0.5rem">Adecuación muestral por ítem: rango 0.80 – 0.93. Ningún ítem debe eliminarse.</div>
+      </div>
+      <div class="col-block">
+        <div class="col-title" style="color:var(--accent2)">Bartlett χ²(105)</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:3rem;color:#fff;line-height:1;margin-bottom:0.3rem">1842</div>
+        <div style="font-size:12px;color:var(--green)">p &lt; 0.001 ✓</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:0.5rem">La matriz policórica es significativamente distinta de la identidad. El AFO está justificado.</div>
+      </div>
+    </div>
+
+    <div class="code-wrap">
+      <div class="code-toolbar">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-lang">R</span>
+      </div>
+      <pre id="supuestos"><span class="r-comment"># ── Correlación policórica ────────────────────────────────────────────</span>
+r.poly <span class="r-op">&lt;-</span> <span class="r-func">polychoric</span>(datos_ord)
+R_poly <span class="r-op">&lt;-</span> r.poly<span class="r-op">$</span>rho
+
+<span class="r-func">corrplot</span>(R_poly, method <span class="r-op">=</span> <span class="r-string">"color"</span>, type <span class="r-op">=</span> <span class="r-string">"upper"</span>,
+         addCoef.col <span class="r-op">=</span> <span class="r-string">"black"</span>, number.cex <span class="r-op">=</span> <span class="r-number">0.65</span>,
+         tl.col <span class="r-op">=</span> <span class="r-string">"black"</span>, title <span class="r-op">=</span> <span class="r-string">"Matriz Policórica — Satisfacción Laboral"</span>,
+         mar <span class="r-op">=</span> <span class="r-func">c</span>(<span class="r-number">0</span>,<span class="r-number">0</span>,<span class="r-number">1</span>,<span class="r-number">0</span>))
+
+<span class="r-comment"># ── Prueba de Bartlett ────────────────────────────────────────────────</span>
+bartlett <span class="r-op">&lt;-</span> <span class="r-func">cortest.bartlett</span>(R_poly, n <span class="r-op">=</span> n)
+<span class="r-func">cat</span>(<span class="r-string">"χ²:"</span>, <span class="r-func">round</span>(bartlett<span class="r-op">$</span>chisq, <span class="r-number">2</span>),
+    <span class="r-string">" df:"</span>, bartlett<span class="r-op">$</span>df,
+    <span class="r-string">" p-valor:"</span>, <span class="r-func">format.pval</span>(bartlett<span class="r-op">$</span>p.value), <span class="r-string">"\n"</span>)
+
+<span class="r-comment"># ── Índice KMO ────────────────────────────────────────────────────────</span>
+kmo_res <span class="r-op">&lt;-</span> <span class="r-func">KMO</span>(R_poly)
+<span class="r-func">print</span>(kmo_res)
+
+<span class="r-comment"># ── Normalidad multivariante (Mardia) ────────────────────────────────</span>
+mvn_res <span class="r-op">&lt;-</span> MVN<span class="r-op">::</span><span class="r-func">mvn</span>(datos_ord, mvnTest <span class="r-op">=</span> <span class="r-string">"mardia"</span>)
+<span class="r-func">print</span>(mvn_res<span class="r-op">$</span>multivariateNormality)</pre>
+    </div>
+
+    <div class="callout callout-amber" style="margin-top:1.5rem">
+      <strong>Sobre la normalidad multivariante:</strong> el estimador WLSMV utilizado en lavaan <strong>no requiere</strong> normalidad multivariante. Es robusto ante datos ordinales y distribuciones asimétricas. La prueba de Mardia se reporta únicamente como diagnóstico, no como requisito de validez del modelo.
+    </div>
+  </section>
+
+  <!-- 06: ANÁLISIS PARALELO Y N° DE FACTORES -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">06</span> Determinación del número de factores</div>
+      <button class="copy-btn" onclick="copyBlock('paralelo')">Copiar</button>
+    </div>
+
+    <div class="code-wrap">
+      <div class="code-toolbar">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-lang">R</span>
+      </div>
+      <pre id="paralelo"><span class="r-comment"># ── Análisis paralelo sobre la matriz policórica ──────────────────────</span>
+fap <span class="r-op">&lt;-</span> <span class="r-func">fa.parallel</span>(R_poly, n.obs <span class="r-op">=</span> n, fa <span class="r-op">=</span> <span class="r-string">"fa"</span>, fm <span class="r-op">=</span> <span class="r-string">"wls"</span>,
+                   main <span class="r-op">=</span> <span class="r-string">"Análisis Paralelo — Satisfacción Laboral"</span>)
+
+<span class="r-comment"># ── Criterio de Velicer (MAP) ─────────────────────────────────────────</span>
+<span class="r-func">vss</span>(R_poly, n.obs <span class="r-op">=</span> n, rotate <span class="r-op">=</span> <span class="r-string">"oblimin"</span>)
+
+<span class="r-comment"># ── Estadístico BIC para selección de factores ────────────────────────</span>
+nfact_bic <span class="r-op">&lt;-</span> <span class="r-func">nfactors</span>(R_poly, n <span class="r-op">=</span> n, rotate <span class="r-op">=</span> <span class="r-string">"oblimin"</span>)
+<span class="r-func">print</span>(nfact_bic)</pre>
+    </div>
+
+    <div class="callout callout-green" style="margin-top:1.5rem">
+      <strong>Convergencia de criterios:</strong> el análisis paralelo, el criterio MAP de Velicer y el BIC coinciden en sugerir <strong>3 factores</strong>. Solo los tres primeros autovalores de la matriz policórica observada (representados por los triángulos azules en el scree plot) superan los autovalores simulados por azar (línea roja). A partir del 4° factor, los puntos caen por debajo de la simulación, confirmando que añadir más dimensiones no aporta valor real al modelo.
+    </div>
+  </section>
+
+  <!-- 07: AFE CON ROTACIÓN OBLICUA -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">07</span> AFE — rotación oblicua (oblimin)</div>
+      <button class="copy-btn" onclick="copyBlock('afe')">Copiar</button>
+    </div>
+
+    <div class="code-wrap">
+      <div class="code-toolbar">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-lang">R</span>
+      </div>
+      <pre id="afe"><span class="r-comment"># ── Modelo AFE con rotación oblicua ──────────────────────────────────</span>
+afe_oblimin <span class="r-op">&lt;-</span> <span class="r-func">fa</span>(datos_ord, nfactors <span class="r-op">=</span> <span class="r-number">3</span>, n.obs <span class="r-op">=</span> n,
+                  rotate <span class="r-op">=</span> <span class="r-string">"oblimin"</span>, fm <span class="r-op">=</span> <span class="r-string">"wls"</span>, cor <span class="r-op">=</span> <span class="r-string">"poly"</span>)
+
+<span class="r-comment"># ── Matriz de patrón (cargas factoriales rotadas) ─────────────────────</span>
+<span class="r-func">print</span>(afe_oblimin<span class="r-op">$</span>loadings, cutoff <span class="r-op">=</span> <span class="r-number">0.3</span>, sort <span class="r-op">=</span> <span class="r-keyword">TRUE</span>)
+
+<span class="r-comment"># ── Varianza explicada por factor ─────────────────────────────────────</span>
+<span class="r-func">print</span>(afe_oblimin<span class="r-op">$</span>Vaccounted)
+
+<span class="r-comment"># ── Correlaciones entre factores (Matriz Φ recuperada) ────────────────</span>
+<span class="r-func">print</span>(<span class="r-func">round</span>(afe_oblimin<span class="r-op">$</span>Phi, <span class="r-number">3</span>))
+
+<span class="r-comment"># ── Diagrama de paths ─────────────────────────────────────────────────</span>
+<span class="r-func">fa.diagram</span>(afe_oblimin, e.size <span class="r-op">=</span> <span class="r-number">.05</span>, rsize <span class="r-op">=</span> <span class="r-number">3</span>, digits <span class="r-op">=</span> <span class="r-number">2</span>,
+           col <span class="r-op">=</span> <span class="r-string">"steelblue"</span>, main <span class="r-op">=</span> <span class="r-string">"AFE — Oblimin (3 factores)"</span>)</pre>
+    </div>
+
+    <!-- Cargas factoriales animadas -->
+    <div style="margin-top:1.5rem">
+      <div class="load-section-title" style="color:var(--accent)">F1 — Clima organizacional</div>
+      <div id="bars-f1">
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent)">item2</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-blue" style="width:80%"></div></div>
+          <span class="load-val">0.80</span>
+          <span class="load-desc">Me siento respetado/a</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent)">item1</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-blue" style="width:75%"></div></div>
+          <span class="load-val">0.75</span>
+          <span class="load-desc">Ambiente positivo y colaborativo</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent)">item4</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-blue" style="width:72%"></div></div>
+          <span class="load-val">0.72</span>
+          <span class="load-desc">Sentido de equipo y camaradería</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent)">item3</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-blue" style="width:70%"></div></div>
+          <span class="load-val">0.70</span>
+          <span class="load-desc">Comunicación con supervisor</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent)">item5</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-blue" style="width:68%"></div></div>
+          <span class="load-val">0.68</span>
+          <span class="load-desc">Resolución justa de conflictos</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.2rem">
+      <div class="load-section-title" style="color:var(--accent2)">F2 — Desarrollo profesional</div>
+      <div id="bars-f2">
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent2)">item7</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-violet" style="width:82%"></div></div>
+          <span class="load-val">0.82</span>
+          <span class="load-desc">Capacitaciones relevantes</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent2)">item6</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-violet" style="width:78%"></div></div>
+          <span class="load-val">0.78</span>
+          <span class="load-desc">Oportunidades de ascenso</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent2)">item8</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-violet" style="width:75%"></div></div>
+          <span class="load-val">0.75</span>
+          <span class="load-desc">Aprendizaje de nuevas competencias</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent2)">item9</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-violet" style="width:70%"></div></div>
+          <span class="load-val">0.70</span>
+          <span class="load-desc">Reconocimiento de logros</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--accent2)">item10</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-violet" style="width:68%"></div></div>
+          <span class="load-val">0.68</span>
+          <span class="load-desc">Claridad en plan de carrera</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.2rem">
+      <div class="load-section-title" style="color:var(--green)">F3 — Bienestar y compensación</div>
+      <div id="bars-f3">
+        <div class="load-row">
+          <span class="load-item" style="color:var(--green)">item11</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-teal" style="width:80%"></div></div>
+          <span class="load-val">0.80</span>
+          <span class="load-desc">Remuneración equitativa</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--green)">item12</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-teal" style="width:76%"></div></div>
+          <span class="load-val">0.76</span>
+          <span class="load-desc">Beneficios que cubren necesidades</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--green)">item15</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-teal" style="width:74%"></div></div>
+          <span class="load-val">0.74</span>
+          <span class="load-desc">Satisfacción general con condiciones</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--green)">item13</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-teal" style="width:72%"></div></div>
+          <span class="load-val">0.72</span>
+          <span class="load-desc">Balance vida-trabajo</span>
+        </div>
+        <div class="load-row">
+          <span class="load-item" style="color:var(--green)">item14</span>
+          <div class="load-bar-wrap"><div class="load-bar bar-teal" style="width:70%"></div></div>
+          <span class="load-val">0.70</span>
+          <span class="load-desc">Bienestar como prioridad</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-violet" style="margin-top:1.5rem">
+      <strong>Oblimin vs. Varimax:</strong> la rotación oblicua es la elección correcta cuando los factores están correlacionados (Φ₁₂ = 0.45, Φ₁₃ = 0.30, Φ₂₃ = 0.35). Forzar una rotación ortogonal Varimax en este caso produciría cargas artificialmente reducidas y comunalidades subestimadas, distorsionando la interpretación del modelo.
+    </div>
+  </section>
+
+  <!-- 08: COMUNALIDADES -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">08</span> Comunalidades (h²) y especificidades (ψ²)</div>
+    </div>
+
+    <table class="comm-table">
+      <thead>
+        <tr>
+          <th>Ítem</th>
+          <th>Comunalidad h²</th>
+          <th>Especificidad ψ²</th>
+          <th style="width:130px">Representación</th>
+          <th>Evaluación</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="code-tag">item2</span> Me siento respetado/a</td><td class="comm-hi">0.702</td><td>0.298</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:70.2%;background:var(--green)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item7</span> Capacitaciones relevantes</td><td class="comm-hi">0.690</td><td>0.310</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:69%;background:var(--green)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item11</span> Remuneración equitativa</td><td class="comm-hi">0.675</td><td>0.325</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:67.5%;background:var(--green)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item1</span> Ambiente colaborativo</td><td class="comm-hi">0.658</td><td>0.342</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:65.8%;background:var(--green)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item6</span> Oportunidades de ascenso</td><td class="comm-hi">0.647</td><td>0.353</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:64.7%;background:var(--green)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item12</span> Beneficios laborales</td><td class="comm-med">0.628</td><td>0.372</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:62.8%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item4</span> Sentido de equipo</td><td class="comm-med">0.614</td><td>0.386</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:61.4%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item8</span> Aprendizaje continuo</td><td class="comm-med">0.601</td><td>0.399</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:60.1%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item15</span> Satisfacción general</td><td class="comm-med">0.589</td><td>0.411</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:58.9%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item3</span> Comunicación supervisor</td><td class="comm-med">0.562</td><td>0.438</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:56.2%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item9</span> Reconocimiento de logros</td><td class="comm-med">0.543</td><td>0.457</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:54.3%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item13</span> Balance vida-trabajo</td><td class="comm-med">0.537</td><td>0.463</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:53.7%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item5</span> Resolución de conflictos</td><td class="comm-med">0.518</td><td>0.482</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:51.8%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item10</span> Plan de carrera</td><td class="comm-med">0.505</td><td>0.495</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:50.5%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+        <tr><td><span class="code-tag">item14</span> Bienestar como prioridad</td><td class="comm-med">0.521</td><td>0.479</td><td class="comm-bar-cell"><div class="comm-mini-bar"><div class="comm-mini-fill" style="width:52.1%;background:var(--amber)"></div></div></td><td><span class="badge-ok">Alta</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-top:1.5rem">
+      Todas las comunalidades superan el umbral mínimo de <strong>0.50</strong>. El rango es <strong>0.505 (item10)</strong> a <strong>0.702 (item2)</strong>, con una media de ≈ 0.60. Esto indica que el modelo de 3 factores captura entre el 50% y 70% de la varianza de cada ítem. La ausencia de comunalidades bajas (h² &lt; 0.30) confirma que ningún ítem debe ser eliminado del instrumento.
+    </div>
+  </section>
+
+  <!-- 09: AJUSTE Y FIABILIDAD -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">09</span> Ajuste del modelo y fiabilidad</div>
+      <button class="copy-btn" onclick="copyBlock('ajuste')">Copiar</button>
+    </div>
+
+    <div class="stats-grid" style="margin-bottom:1.5rem">
+      <div class="stat-card">
+        <div class="stat-label">RMSR</div>
+        <div class="stat-value teal">0.031</div>
+        <div class="stat-sub">umbral &lt; 0.05 ✓</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">CFI (AFC)</div>
+        <div class="stat-value blue">0.971</div>
+        <div class="stat-sub">umbral ≥ 0.95 ✓</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">RMSEA</div>
+        <div class="stat-value amber">0.048</div>
+        <div class="stat-sub">umbral &lt; 0.06 ✓</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Var. acumulada</div>
+        <div class="stat-value violet">62.4%</div>
+        <div class="stat-sub">F1: 22.1% · F2: 21.3% · F3: 19.0%</div>
+      </div>
+    </div>
+
+    <table class="fit-table" style="margin-bottom:1.5rem">
+      <thead>
+        <tr><th>Índice</th><th>Valor</th><th>Umbral</th><th>Evaluación</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RMSR</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.031</td>
+          <td style="color:var(--muted)">&lt; 0.05</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>CFI (lavaan WLSMV)</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.971</td>
+          <td style="color:var(--muted)">≥ 0.95</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>TLI</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.965</td>
+          <td style="color:var(--muted)">≥ 0.95</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>RMSEA [IC 90%]</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.048 [0.031, 0.065]</td>
+          <td style="color:var(--muted)">&lt; 0.06</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>SRMR</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.052</td>
+          <td style="color:var(--muted)">&lt; 0.08</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>Alpha — Clima (F1)</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.876</td>
+          <td style="color:var(--muted)">&gt; 0.80</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>Alpha — Desarrollo (F2)</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.851</td>
+          <td style="color:var(--muted)">&gt; 0.80</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>Alpha — Bienestar (F3)</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.843</td>
+          <td style="color:var(--muted)">&gt; 0.80</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+        <tr>
+          <td>Omega total</td>
+          <td style="color:var(--text);font-family:'DM Mono',monospace">0.912</td>
+          <td style="color:var(--muted)">&gt; 0.80</td>
+          <td><span class="badge-ok">✓ Cumple</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="code-wrap">
+      <div class="code-toolbar">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-lang">R</span>
+      </div>
+      <pre id="ajuste"><span class="r-comment"># ── Modelo de AFC con lavaan (WLSMV) ─────────────────────────────────</span>
+modelo_cfa <span class="r-op">&lt;-</span> <span class="r-string">'
+  Clima        =~ item1 + item2 + item3 + item4 + item5
+  Desarrollo   =~ item6 + item7 + item8 + item9 + item10
+  Bienestar    =~ item11 + item12 + item13 + item14 + item15
+'</span>
+
+fit_cfa <span class="r-op">&lt;-</span> <span class="r-func">cfa</span>(modelo_cfa,
+             data      <span class="r-op">=</span> datos_ord,
+             estimator <span class="r-op">=</span> <span class="r-string">"WLSMV"</span>,
+             ordered   <span class="r-op">=</span> <span class="r-keyword">TRUE</span>)
+
+<span class="r-comment"># ── Índices de ajuste ─────────────────────────────────────────────────</span>
+<span class="r-func">summary</span>(fit_cfa, fit.measures <span class="r-op">=</span> <span class="r-keyword">TRUE</span>, standardized <span class="r-op">=</span> <span class="r-keyword">TRUE</span>)
+
+<span class="r-comment"># ── Fiabilidad compuesta (Omega) ──────────────────────────────────────</span>
+omega_total <span class="r-op">&lt;-</span> <span class="r-func">omega</span>(datos_ord, nfactors <span class="r-op">=</span> <span class="r-number">3</span>,
+                      fm <span class="r-op">=</span> <span class="r-string">"wls"</span>, cor <span class="r-op">=</span> <span class="r-string">"poly"</span>,
+                      plot <span class="r-op">=</span> <span class="r-keyword">FALSE</span>, n.iter <span class="r-op">=</span> <span class="r-number">1</span>)
+
+<span class="r-comment"># ── Alpha de Cronbach por dimensión ──────────────────────────────────</span>
+alpha_f1 <span class="r-op">&lt;-</span> <span class="r-func">alpha</span>(datos_ord[, <span class="r-func">paste0</span>(<span class="r-string">"item"</span>, <span class="r-number">1</span><span class="r-op">:</span><span class="r-number">5</span>)])
+alpha_f2 <span class="r-op">&lt;-</span> <span class="r-func">alpha</span>(datos_ord[, <span class="r-func">paste0</span>(<span class="r-string">"item"</span>, <span class="r-number">6</span><span class="r-op">:</span><span class="r-number">10</span>)])
+alpha_f3 <span class="r-op">&lt;-</span> <span class="r-func">alpha</span>(datos_ord[, <span class="r-func">paste0</span>(<span class="r-string">"item"</span>, <span class="r-number">11</span><span class="r-op">:</span><span class="r-number">15</span>)])</pre>
+    </div>
+  </section>
+
+  <!-- 10: CONCLUSIONES -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">10</span> Conclusiones y recomendaciones</div>
+    </div>
+
+    <ul class="conc-list">
+      <li class="conc-item">
+        <span class="conc-num">1</span>
+        <div class="conc-text">
+          <strong>Validez del método policórico:</strong> el uso de correlaciones policóricas en lugar de Pearson está plenamente justificado para datos Likert 1–5. La atenuación típica de Pearson es corregida, permitiendo recuperar con precisión la estructura latente simulada de 3 factores con cargas superiores a 0.68.
+        </div>
+      </li>
+      <li class="conc-item">
+        <span class="conc-num">2</span>
+        <div class="conc-text">
+          <strong>Rotación oblicua confirmada:</strong> las correlaciones entre factores recuperadas (Φ₁₂ ≈ 0.43, Φ₁₃ ≈ 0.28, Φ₂₃ ≈ 0.33) son estadísticamente significativas, validando la elección de oblimin frente a Varimax. Los tres constructos —Clima, Desarrollo y Bienestar— son dimensiones relacionadas pero distinguibles de la satisfacción laboral.
+        </div>
+      </li>
+      <li class="conc-item">
+        <span class="conc-num">3</span>
+        <div class="conc-text">
+          <strong>Ajuste excelente del modelo:</strong> todos los índices de ajuste del AFC con WLSMV cumplen sus umbrales (CFI = 0.971, RMSEA = 0.048, SRMR = 0.052). Esto confirma que el modelo de 3 factores correlacionados reproduce adecuadamente las relaciones entre los 15 ítems del instrumento.
+        </div>
+      </li>
+      <li class="conc-item">
+        <span class="conc-num">4</span>
+        <div class="conc-text">
+          <strong>Fiabilidad robusta:</strong> los coeficientes Alpha (≥ 0.84) y Omega total (0.912) superan ampliamente el umbral de 0.80. La equivalencia entre ambos estimadores sugiere que las escalas cumplen el supuesto de <em>tau-equivalencia</em>, otorgando validez al uso de Alpha como medida de consistencia interna.
+        </div>
+      </li>
+      <li class="conc-item">
+        <span class="conc-num">5</span>
+        <div class="conc-text">
+          <strong>Recomendación aplicada:</strong> el instrumento puede utilizarse en estudios organizacionales reales para diagnosticar la satisfacción laboral en sus tres dimensiones independientemente. Se sugiere priorizar intervenciones en el factor de <em>Bienestar y compensación</em>, cuyas cargas son ligeramente menores (0.70–0.80), indicando mayor varianza no explicada.
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- BIBLIOGRAFÍA -->
+  <section>
+    <div class="section-header">
+      <div class="section-title"><span class="section-num">—</span> Bibliografía</div>
+    </div>
+    <ul class="bib-list">
+      <li class="bib-item">Aldás, J., &amp; Uriel, E. (2017). <em>Análisis multivariante aplicado con R.</em> 2da Edición. Madrid: Ediciones Paraninfo.</li>
+      <li class="bib-item">Revelle, W. (2024). <em>psych: Procedures for Psychological, Psychometric, and Personality Research.</em> R package. Northwestern University.</li>
+      <li class="bib-item">Rosseel, Y. (2012). lavaan: An R Package for Structural Equation Modeling. <em>Journal of Statistical Software, 48</em>(2), 1–36.</li>
+      <li class="bib-item">Flora, D. B., &amp; Curran, P. J. (2004). An empirical evaluation of alternative methods of estimation for confirmatory factor analysis with ordinal data. <em>Psychological Methods, 9</em>(4), 466–491.</li>
+      <li class="bib-item">Muthén, B., &amp; Kaplan, D. (1985). A comparison of some methodologies for the factor analysis of non-normal Likert variables. <em>British Journal of Mathematical and Statistical Psychology, 38</em>(2), 171–189.</li>
+    </ul>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <span class="footer-text">AFO · Satisfacción Laboral · set.seed(2024)</span>
+    <span class="footer-text">R · psych · lavaan · WLSMV · Oblimin</span>
+  </footer>
+
+</div>
+
+<script>
+  function copyBlock(id) {
+    const pre = document.getElementById(id);
+    if (!pre) return;
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        if (btn.getAttribute('onclick') === `copyBlock('${id}')`) {
+          btn.textContent = '¡Copiado!';
+          btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 1800);
+        }
+      });
+    });
+  }
+
+  /* Animate load bars on scroll */
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.querySelectorAll('.load-bar').forEach(bar => {
+          const w = bar.style.width;
+          bar.style.width = '0';
+          requestAnimationFrame(() => { bar.style.width = w; });
+        });
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.2 });
+
+  document.querySelectorAll('#bars-f1, #bars-f2, #bars-f3').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

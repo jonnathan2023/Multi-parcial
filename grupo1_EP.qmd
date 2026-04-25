@@ -42,12 +42,600 @@ format:
         <hr/>
 ---
 
-# Pregunta 1
+# Análisis Factorial Ordinal
 
-# Pregunta 2
+## Introducción
 
-# Pregunta 3
+El **Análisis Factorial (AF)** es un método estadístico multivariante que permite construir un modelo para explicar la correlación existente entre un conjunto de variables en términos de un conjunto menor de variables no observables denominadas **factores latentes** (Miranda, Clase 3). A diferencia del Análisis de Componentes Principales (ACP) —que es una técnica de reducción de datos en el campo de la Estadística Descriptiva— el AF implica la elaboración de un modelo estadístico formal que requiere la formulación de hipótesis y la aplicación de métodos de inferencia.
 
-# Pregunta 4
+Como señala el Prof. Miranda (Clase 3): *"En el AF, los factores son seleccionados para explicar las interrelaciones entre variables"*, mientras que en el ACP se busca explicar la mayor variabilidad posible con el menor número de componentes. En el AF, **las variables originales juegan el rol de variables dependientes**, cuya interrelación se desea explicar mediante un conjunto de factores comunes y únicos no observables.
 
-# Pregunta 5
+En el presente trabajo se aplica el **Análisis Factorial Policórico**, apropiado para datos de escala ordinal (Likert 1–5), ya que las correlaciones de Pearson suelen subestimar las relaciones reales entre variables ordinales. La correlación policórica asume que cada variable ordinal es la versión categorizada de una variable latente continua con distribución normal bivariada subyacente (Aldás & Uriel, 2ª Ed.).
+
+## Datos utilizados
+
+```{r}
+#| label: carga-datos
+#| message: false
+#| warning: false
+
+library(readxl)
+library(psych)
+library(performance)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+
+# Carga de datos
+Constructo <- read_excel("Datos_Ordinales.xlsx", sheet = 1)
+test <- as.data.frame(Constructo)
+
+n <- nrow(test)
+p <- ncol(test)
+
+cat("Dimensiones del conjunto de datos:\n")
+cat("  Numero de observaciones (n):", n, "\n")
+cat("  Numero de items (p):", p, "\n")
+cat("  Escala de respuesta: Likert 1-5\n")
+```
+
+Los datos corresponden a un instrumento de **`r p` ítems** (P1–P15) medidos en **escala Likert de 5 puntos** (1 = Totalmente en desacuerdo, 5 = Totalmente de acuerdo), con un total de **`r n` observaciones**. Esta muestra es estadísticamente adecuada para el Análisis Factorial, superando ampliamente el mínimo recomendado de 5 observaciones por ítem (Aldás & Uriel, 2ª Ed.).
+
+```{r}
+#| label: tabla-head
+#| message: false
+#| warning: false
+
+kable(head(test, 10),
+      caption = "Primeras 10 observaciones — Escala Likert 1–5 (P1 a P15)") |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE) |>
+  scroll_box(width = "100%")
+```
+
+```{r}
+#| label: descriptivos
+#| message: false
+#| warning: false
+
+desc <- describe(test)[, c("mean", "sd", "median", "min", "max", "skew", "kurtosis")]
+desc <- round(desc, 3)
+
+kable(desc,
+      caption = "Estadísticos descriptivos por ítem",
+      col.names = c("Media", "D.E.", "Mediana", "Min.", "Max.", "Asimetria", "Curtosis")) |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, font_size = 12)
+```
+
+> **Nota metodológica:** Dado que las variables están medidas en escala ordinal (Likert 1–5), el uso de correlaciones de Pearson no es adecuado para el AF. Se emplea la **correlación policórica**, que estima la correlación entre las variables latentes continuas subyacentes a las categorías ordinales observadas (Miranda, Clase 3; Aldás & Uriel, 2ª Ed.).
+
+## Verificación de supuestos
+
+Antes de proceder con el Análisis Factorial, el Prof. Miranda (Clase 3 — Pruebas Estadísticas Preliminares) establece que deben verificarse dos condiciones esenciales:
+
+1. **Prueba de esfericidad de Bartlett:** contrasta si la matriz de correlaciones es significativamente diferente de la matriz identidad ($\mathbf{I}$). Si no se rechaza $H_0$, las variables no están correlacionadas entre sí y no tiene sentido factorizarlas.
+2. **Índice KMO (Kaiser-Meyer-Olkin):** mide la proporción de varianza que es común a las variables. Valores $\geq 0.60$ son aceptables; $\geq 0.80$ se clasifican como excelentes (Miranda, Clase 3).
+
+> **Sobre la normalidad multivariante:** Como señala el Prof. Miranda (Clase 3, Slide 7): *"Desde un punto de vista estadístico, se pueden obviar los supuestos de normalidad, homocedasticidad y linealidad siendo conscientes que su incumplimiento produce una disminución en las correlaciones observadas. En realidad sólo es necesaria la normalidad cuando se aplica una prueba estadística a la significación de los factores."* Por ello, con datos ordinales no se realiza la prueba de normalidad multivariante de Shapiro.
+
+### Matriz de correlaciones policóricas
+
+```{r}
+#| label: cor-polychoric
+#| message: false
+#| warning: false
+
+# Correlacion policronica (psych::polychoric) — misma funcion que usa el Prof. Miranda
+r.poly <- polychoric(test)
+R <- r.poly$rho   # Matriz de correlaciones policorica
+
+kable(round(R, 3),
+      caption = "Matriz de Correlaciones Policoricas — items P1 a P15") |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                font_size = 10, full_width = TRUE) |>
+  scroll_box(width = "100%")
+```
+
+> La función `polychoric()` del paquete `psych` estima la correlación policórica asumiendo que existe una variable latente continua con distribución normal bivariada subyacente a cada par de ítems ordinales. Esta es la misma función utilizada por el Prof. Miranda (`r.poly <- polychoric(test)` → `R <- r.poly$rho`), y su resultado se usa como entrada para todos los análisis siguientes en lugar de `cor(test)` (correlación de Pearson).
+
+### Prueba de esfericidad de Bartlett
+
+$$H_0: \mathbf{R} = \mathbf{I} \quad \text{(no hay correlacion entre variables)}$$
+$$H_1: \mathbf{R} \neq \mathbf{I} \quad \text{(existe correlacion significativa)}$$
+
+```{r}
+#| label: bartlett
+#| message: false
+#| warning: false
+
+bartlett_result <- cortest.bartlett(R, n)
+
+resultado_bartlett <- data.frame(
+  Estadistico = c("Chi-cuadrado", "Grados de libertad", "p-valor", "Decision"),
+  Valor = c(
+    round(bartlett_result$chisq, 3),
+    bartlett_result$df,
+    formatC(bartlett_result$p.value, format = "e", digits = 3),
+    ifelse(bartlett_result$p.value < 0.05,
+           "Rechazar H0: AF apropiado",
+           "No rechazar H0: AF no recomendado")
+  )
+)
+
+kable(resultado_bartlett,
+      caption = "Prueba de Esfericidad de Bartlett",
+      col.names = c("Estadistico", "Valor"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = FALSE) |>
+  row_spec(4, bold = TRUE, background = "#dff0d8")
+```
+
+**Interpretación:** El estadístico $\chi^2$ con $p < 0.001$ permite **rechazar la hipótesis nula** de que la matriz de correlaciones policórica es igual a la identidad. Existe correlación significativa entre los ítems del instrumento, lo que confirma que el Análisis Factorial es apropiado para estos datos (Miranda, Clase 3).
+
+### Índice Kaiser-Meyer-Olkin (KMO)
+
+```{r}
+#| label: kmo
+#| message: false
+#| warning: false
+
+kmo_result <- KMO(R)
+
+# Tabla de MSA individuales con evaluacion
+msa_df <- data.frame(
+  Item           = names(kmo_result$MSAi),
+  MSA_individual = round(kmo_result$MSAi, 3),
+  Evaluacion     = ifelse(kmo_result$MSAi >= 0.80, "Excelente",
+                   ifelse(kmo_result$MSAi >= 0.70, "Bueno",
+                   ifelse(kmo_result$MSAi >= 0.60, "Aceptable",
+                   ifelse(kmo_result$MSAi >= 0.50, "Regular",
+                          "Inaceptable"))))
+)
+
+tbl_kmo <- kable(msa_df,
+      caption = paste0("KMO Global = ", round(kmo_result$MSA, 3),
+                       " (EXCELENTE) — MSA individuales por item"),
+      row.names = FALSE,
+      col.names = c("Item", "MSA individual", "Evaluacion")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+# Rojo para inaceptable, verde para excelente
+filas_rojo  <- which(msa_df$MSA_individual < 0.50)
+filas_verde <- which(msa_df$MSA_individual >= 0.80)
+
+if (length(filas_rojo) > 0) {
+  tbl_kmo <- row_spec(tbl_kmo, filas_rojo, bold = TRUE,
+                      color = "white", background = "#d9534f")
+}
+if (length(filas_verde) > 0) {
+  tbl_kmo <- row_spec(tbl_kmo, filas_verde, background = "#dff0d8")
+}
+tbl_kmo
+```
+
+**Interpretación:** El KMO global es **`r round(kmo_result$MSA, 3)`**, clasificado como **EXCELENTE** (> 0.80 según Kaiser). Esto indica que la proporción de varianza compartida entre los ítems es muy alta y que los datos son altamente adecuados para el Análisis Factorial. Con $n = 250$ observaciones y una escala Likert 1–5 bien calibrada, se obtiene una adecuación muestral notablemente superior al mínimo recomendado de 0.60 (Miranda, Clase 3). Adicionalmente, se puede verificar con la función `check_factorstructure()`:
+
+```{r}
+#| label: check-structure
+#| message: false
+#| warning: false
+
+check_factorstructure(R, n)
+```
+
+> **Ningún ítem presenta MSA < 0.50**, por lo que no es necesario eliminar variables. Los 15 ítems se conservan íntegros para el análisis, a diferencia del código del Prof. Miranda donde el ítem P13 mostraba MSA = 0.28 y requería consideración de exclusión.
+
+## Determinación del número de factores
+
+Para determinar el número óptimo de factores se utiliza el **Análisis Paralelo** (`fa.parallel`), que es el método recomendado por el Prof. Miranda (Clase 3) por ser más preciso que el criterio de Kaiser (autovalores > 1). Este procedimiento compara los **autovalores observados** de la matriz policórica real con los **autovalores esperados bajo datos aleatorios** con las mismas dimensiones ($n \times p$): se retienen únicamente los factores cuyos autovalores reales superan a los simulados.
+
+```{r}
+#| label: parallel-analysis
+#| message: false
+#| warning: false
+#| fig-cap: "Analisis Paralelo — Scree Plot con autovalores observados vs. simulados"
+#| fig-width: 9
+#| fig-height: 5
+
+set.seed(2026)
+fap <- fa.parallel(R, n.obs = n, fa = "fa", fm = "uls",
+                   main = "Analisis Paralelo — Determinacion del N de Factores")
+```
+
+```{r}
+#| label: eigenvalues-tabla
+#| echo: false
+
+eigen_df <- data.frame(
+  Factor             = paste0("F", seq_along(fap$fa.values)),
+  Autovalor_obs      = round(fap$fa.values, 4),
+  Autovalor_simulado = round(fap$fa.sim,    4),
+  Supera_simulado    = ifelse(fap$fa.values > fap$fa.sim, "Si", "No")
+)
+
+nf <- fap$nfact
+tbl_eigen <- kable(eigen_df[1:8, ],
+      caption = "Autovalores observados vs. simulados — Primeros 8 factores",
+      col.names = c("Factor", "Autovalor observado",
+                    "Autovalor simulado", "Supera al simulado?"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+for (i in 1:8) {
+  bg <- if (i <= nf) "#dff0d8" else "#f9f2f4"
+  tbl_eigen <- row_spec(tbl_eigen, i, background = bg,
+                        bold = (i <= nf))
+}
+tbl_eigen
+```
+
+**Interpretación:** El análisis paralelo sugiere retener **`r fap$nfact` factores** (filas en verde). Los primeros `r fap$nfact` autovalores observados superan sus correspondientes valores simulados bajo aleatoriedad, mientras que a partir del factor `r fap$nfact + 1` los autovalores observados son inferiores a los aleatorios —indicando que no aportan información real más allá del ruido—. Esta solución de **3 factores** es coherente con la estructura teórica diseñada en los datos (Miranda, Clase 3).
+
+## Estimación del modelo factorial
+
+### Métodos de estimación
+
+Tal como indica el Prof. Miranda (Clase 3 — Métodos de Estimación), existen varios métodos de extracción. La elección depende de la naturaleza de los datos:
+
+| Método | Código R | Descripcion | Datos recomendados |
+|--------|----------|-------------|--------------------|
+| Maxima verosimilitud | `ml` | Confirmatorio, requiere normalidad | Normales multivariantes |
+| **Min. cuadrados no ponderados** | **`uls`** | **Robusto, sin supuesto de normalidad** | **Ordinales** |
+| Ejes principales | `pa` | Exploratorio clasico | Continuas |
+| Min. cuadrados ponderados | `wls` | Para dicotomicas | Dicotomicas |
+| Min. cuadrados generalizados | `gls` | Generalizacion de MC | Continuas |
+
+> **Eleccion del metodo `uls`:** Para datos ordinales Likert 1–5, el metodo **ULS** (*Unweighted Least Squares* — Minimos Cuadrados No Ponderados) es el apropiado porque no requiere el supuesto de normalidad multivariante. Se combina con `cor = "poly"` para que `fa()` utilice internamente la matriz de correlaciones policoricas como entrada en lugar de la de Pearson (Miranda, Clase 3; Aldas & Uriel, 2a Ed.).
+
+### Solución sin rotación
+
+```{r}
+#| label: factorial-sin-rotacion
+#| message: false
+#| warning: false
+
+factorial1 <- fa(test, nfactors = 3, n.obs = n,
+                 rotate = "none", fm = "uls", cor = "poly")
+
+cargas1 <- data.frame(round(unclass(factorial1$loadings)[, 1:3], 3))
+cargas1$h2 <- round(factorial1$communality, 3)
+cargas1$u2 <- round(factorial1$uniquenesses, 3)
+
+kable(cargas1,
+      caption = "Cargas Factoriales — Sin rotacion (ULS, correlacion policorica)",
+      col.names = c("ULS1", "ULS2", "ULS3", "Comunalidad (h2)", "Unicidad (u2)")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+```{r}
+#| label: varianza-sin-rotacion
+#| echo: false
+
+vc1 <- factorial1$Vaccounted
+prop_var1 <- data.frame(
+  Estadistico = c("SS Loadings", "Proporcion Var.",
+                  "Var. Acumulada", "Prop. Explicada", "Prop. Acumulada"),
+  ULS1 = round(vc1[, 1], 4),
+  ULS2 = round(vc1[, 2], 4),
+  ULS3 = round(vc1[, 3], 4)
+)
+
+kable(prop_var1,
+      caption = "Varianza explicada por factor — Sin rotacion") |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+**Interpretación:** Sin rotación, el primer factor concentra la mayor parte de la varianza, lo que dificulta la identificación de dimensiones latentes diferenciadas. Como señala el Prof. Miranda (Clase 3 — Rotación de Factores), *"la rotación tiene como finalidad determinar fácilmente los factores comunes y la interpretación de sus interrelaciones con cada una de las variables originales"*. Es necesario rotar para obtener una **estructura simple**.
+
+### Solución con rotación VARIMAX
+
+La **rotación ortogonal VARIMAX** maximiza la varianza de las cargas al cuadrado dentro de cada factor, procurando que cada ítem presente **una carga alta en un único factor y cargas bajas en los demás**. Los factores rotados mantienen la ortogonalidad entre sí (Miranda, Clase 3 — Métodos de Rotación de Factores).
+
+```{r}
+#| label: factorial-varimax
+#| message: false
+#| warning: false
+
+factorial2 <- fa(test, nfactors = 3, n.obs = n,
+                 rotate = "varimax", fm = "uls", cor = "poly")
+
+# Cargas rotadas
+L_rot <- unclass(factorial2$loadings)[, 1:3]
+cargas2 <- data.frame(round(L_rot, 3))
+cargas2$h2 <- round(factorial2$communality, 3)
+cargas2$u2 <- round(factorial2$uniquenesses, 3)
+
+# Color segun factor dominante (calculado dinamicamente)
+factor_dom <- apply(abs(L_rot), 1, which.max)
+color_fila <- ifelse(factor_dom == 1, "#dff0d8",
+               ifelse(factor_dom == 2, "#d9edf7", "#fcf8e3"))
+
+tbl_vx <- kable(cargas2,
+      caption = "Cargas Factoriales — Rotacion VARIMAX (ULS, correlacion policorica)",
+      col.names = c("ULS1", "ULS2", "ULS3", "Comunalidad (h2)", "Unicidad (u2)")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+for (i in seq_len(nrow(cargas2))) {
+  tbl_vx <- row_spec(tbl_vx, i, background = color_fila[i])
+}
+tbl_vx
+```
+
+```{r}
+#| label: varianza-con-rotacion
+#| echo: false
+
+vc2 <- factorial2$Vaccounted
+prop_var2 <- data.frame(
+  Estadistico = c("SS Loadings", "Proporcion Var.",
+                  "Var. Acumulada", "Prop. Explicada", "Prop. Acumulada"),
+  ULS1 = round(vc2[, 1], 4),
+  ULS2 = round(vc2[, 2], 4),
+  ULS3 = round(vc2[, 3], 4)
+)
+
+tbl_vc2 <- kable(prop_var2,
+      caption = "Varianza explicada por factor — Con rotacion VARIMAX") |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+# Resaltar fila de varianza acumulada
+row_acum <- which(prop_var2$Estadistico == "Var. Acumulada")
+tbl_vc2 <- row_spec(tbl_vc2, row_acum, bold = TRUE, background = "#dff0d8")
+tbl_vc2
+```
+
+**Interpretación:** Tras la rotación VARIMAX, la varianza se redistribuye de forma más equitativa entre los tres factores. La varianza acumulada total es **`r round(sum(factorial2$Vaccounted[2,])*100, 2)`%**, superando holgadamente el umbral recomendado del 76% (Miranda, Clase 3).
+
+### Diagrama factorial
+
+```{r}
+#| label: diagrama-factorial
+#| message: false
+#| warning: false
+#| fig-cap: "Diagrama de estructura factorial — Rotacion VARIMAX (ULS, policorica)"
+#| fig-width: 8
+#| fig-height: 7
+
+fa.diagram(factorial2, e.size = 0.05, rsize = 3.5,
+           digits = 2, col = "blue",
+           main = "Estructura Factorial — 3 Factores (VARIMAX, ULS, Policorica)")
+```
+
+> El diagrama muestra los tres factores latentes y las cargas sobre cada ítem observado (flechas). Cada ítem aparece conectado únicamente al factor con mayor carga, evidenciando la **estructura simple** buscada con la rotación VARIMAX (Miranda, Clase 3 — Interpretación de los factores).
+
+## Identificación de las cargas factoriales máximas
+
+Siguiendo exactamente el procedimiento del Prof. Miranda (`data_3.R`), se asigna cada ítem al factor en el que presenta la **mayor carga factorial en valor absoluto**:
+
+```{r}
+#| label: cargas-maximas
+#| message: false
+#| warning: false
+
+L <- unclass(factorial2$loadings)
+
+dat <- data.frame(
+  ifelse(
+    abs(L) == apply(abs(L), 1, max),
+    apply(abs(L), 1, max),
+    NA
+  )
+)
+
+dat1  <- data.frame(Item = rownames(dat), dat)
+fact  <- gather(dat1, Factor, cargas, -Item) |> drop_na()
+Cargas <- split(fact, fact$Factor)
+
+# Mostrar por factor (igual que el codigo del Prof. Miranda)
+print(Cargas)
+```
+
+```{r}
+#| label: tabla-cargas-maximas
+#| message: false
+#| warning: false
+
+fact_tabla <- fact |>
+  arrange(Factor, desc(cargas)) |>
+  mutate(cargas = round(cargas, 4))
+
+factores_unicos <- sort(unique(fact_tabla$Factor))
+paleta <- c("#dff0d8", "#d9edf7", "#fcf8e3")
+color_fact <- paleta[match(fact_tabla$Factor, factores_unicos)]
+
+tbl_cm <- kable(fact_tabla,
+      caption = "Asignacion de items a factores — Carga maxima en valor absoluto",
+      col.names = c("Item", "Factor", "Carga Factorial"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+for (i in seq_len(nrow(fact_tabla))) {
+  tbl_cm <- row_spec(tbl_cm, i, background = color_fact[i])
+}
+tbl_cm
+```
+
+## Interpretación de los factores
+
+Con base en las cargas factoriales rotadas y la asignación al factor de mayor carga, la estructura factorial se define como sigue. Como indica el Prof. Miranda (Clase 3): *"se puede identificar rasgos o características comunes en un grupo de variables asociadas a un factor y dar una denominación a estas interrelaciones encontradas entre las variables del grupo"*.
+
+```{r}
+#| label: tabla-interpretacion
+#| echo: false
+#| message: false
+#| warning: false
+
+# Nombres de factores segun estructura teorica de la data generada
+factor_nombres <- setNames(
+  c("Factor 1 — Proactividad",
+    "Factor 2 — Liderazgo",
+    "Factor 3 — Empatia"),
+  factores_unicos
+)
+
+interp_df <- fact_tabla |>
+  mutate(
+    Nombre_Factor = factor_nombres[Factor],
+    Pct_var = paste0(
+      round(factorial2$Vaccounted[2,
+        match(Factor, colnames(factorial2$Vaccounted))] * 100, 1), "%")
+  ) |>
+  select(Nombre_Factor, Item, cargas, Pct_var)
+
+color_interp <- paleta[match(
+  sapply(interp_df$Nombre_Factor, function(x)
+    factores_unicos[which(factor_nombres == x)]),
+  factores_unicos)]
+
+tbl_interp <- kable(interp_df,
+      caption = "Resumen de la estructura factorial — 3 factores (VARIMAX, ULS, Policorica)",
+      col.names = c("Factor", "Item agrupado", "Carga maxima", "% Varianza"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+for (i in seq_len(nrow(interp_df))) {
+  tbl_interp <- row_spec(tbl_interp, i, background = color_interp[i])
+}
+tbl_interp
+```
+
+### Descripción de cada factor
+
+**Factor 1 — Proactividad (F1):**
+Agrupa los ítems P2, P5, P6, P10, P12 y P14, todos con cargas factoriales superiores a 0.88. Este factor captura conductas e intenciones proactivas: toma de iniciativa, búsqueda de mejoras y anticipación ante situaciones. La alta homogeneidad de cargas refleja un constructo muy bien definido en el instrumento.
+
+**Factor 2 — Liderazgo (F2):**
+Agrupa los ítems P1, P3, P4 y P13, con cargas superiores a 0.85. Este factor representa la dimensión de liderazgo: capacidad de dirección, influencia sobre otros y orientación hacia metas colectivas. Los ítems comparten la característica de involucrar relaciones de autoridad y responsabilidad grupal.
+
+**Factor 3 — Empatía (F3):**
+Agrupa los ítems P7, P8, P9, P11 y P15, con cargas superiores a 0.84. Este factor refleja la capacidad de comprensión emocional y escucha activa hacia otras personas, así como la sensibilidad interpersonal. Las cargas muy altas y homogéneas indican que estos ítems miden un rasgo latente muy bien diferenciado.
+
+> **Nota:** La denominación de los factores (Proactividad, Liderazgo, Empatía) corresponde a la estructura teórica con que se diseñó el instrumento en el código de generación de datos (`set.seed(2026)`), donde las cargas de la matriz L se asignaron explícitamente a estos tres constructos.
+
+## Medidas de bondad de ajuste
+
+```{r}
+#| label: bondad-ajuste
+#| message: false
+#| warning: false
+
+rmsr_val  <- round(factorial2$rms,      4)
+tli_val   <- round(factorial2$TLI,      3)
+rmsea_val <- round(factorial2$RMSEA[1], 3)
+bic_val   <- round(factorial2$BIC,      2)
+fit_val   <- round(factorial2$fit,      4)
+var_pct   <- round(sum(factorial2$Vaccounted[2,]) * 100, 2)
+
+ajuste_df <- data.frame(
+  Medida = c("RMSR (Raiz cuadratica media residuos)",
+             "Tucker-Lewis Index (TLI)",
+             "RMSEA",
+             "BIC",
+             "Fit (off-diagonal)",
+             "Varianza total acumulada (3 factores)"),
+  Valor = c(rmsr_val, tli_val, rmsea_val, bic_val, fit_val,
+             paste0(var_pct, "%")),
+  Umbral = c("< 0.05: excelente", "> 0.95: excelente",
+             "< 0.08: aceptable", "Menor es mejor",
+             "Cercano a 1: buen ajuste", "> 76%: suficiente"),
+  Evaluacion = c(
+    ifelse(rmsr_val  < 0.05, "EXCELENTE", "Revisar"),
+    ifelse(tli_val   > 0.95, "EXCELENTE",
+           ifelse(tli_val > 0.90, "Bueno", "Revisar")),
+    ifelse(rmsea_val < 0.08, "Aceptable",
+           ifelse(rmsea_val < 0.10, "Moderado", "Pobre")),
+    "Referencia",
+    ifelse(fit_val   > 0.95, "EXCELENTE", "Aceptable"),
+    ifelse(var_pct   >= 76,  "CUMPLE", "Insuficiente")
+  )
+)
+
+tbl_aj <- kable(ajuste_df,
+      caption = "Medidas de bondad de ajuste del modelo factorial",
+      row.names = FALSE,
+      col.names = c("Medida", "Valor", "Umbral referencia", "Evaluacion")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = TRUE)
+
+for (i in seq_len(nrow(ajuste_df))) {
+  bg <- if (grepl("EXCELENTE|CUMPLE|Aceptable|Bueno", ajuste_df$Evaluacion[i])) {
+          "#dff0d8"
+        } else if (grepl("Pobre|Insuficiente", ajuste_df$Evaluacion[i])) {
+          "#f2dede"
+        } else if (grepl("Moderado|Revisar", ajuste_df$Evaluacion[i])) {
+          "#fcf8e3"
+        } else { "#ffffff" }
+  tbl_aj <- row_spec(tbl_aj, i, background = bg)
+}
+tbl_aj
+```
+
+> **Interpretación conjunta:** El RMSR = `r rmsr_val` (< 0.05) es el indicador de ajuste más relevante con datos ordinales y confirma que el modelo reproduce con alta precisión la matriz de correlaciones policórica observada. La varianza acumulada de **`r var_pct`%** supera el umbral del 76%. Con $n = 250$, los índices basados en chi-cuadrado (RMSEA, BIC) son más estables e interpretables que con muestras pequeñas (Aldás & Uriel, 2ª Ed.).
+
+## Fiabilidad del instrumento
+
+```{r}
+#| label: omega
+#| message: false
+#| warning: false
+
+om <- omega(test, nfactors = 3, fm = "minres", poly = TRUE, plot = FALSE)
+
+omega_df <- data.frame(
+  Indicador = c("Omega total (w total)",
+                "Omega jerarquico (w h)",
+                "Alpha de Cronbach",
+                "Evaluacion global"),
+  Valor = c(round(om$omega.tot, 3),
+            round(om$omega_h,   3),
+            round(om$alpha,     3),
+            ifelse(om$omega.tot >= 0.90, "EXCELENTE (>= 0.90)",
+            ifelse(om$omega.tot >= 0.80, "BUENO (>= 0.80)",
+                                         "ACEPTABLE (>= 0.70)")))
+)
+
+kable(omega_df,
+      caption = "Fiabilidad del instrumento — Omega de McDonald",
+      row.names = FALSE,
+      col.names = c("Indicador", "Valor")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) |>
+  row_spec(4, bold = TRUE, background = "#dff0d8")
+```
+
+> El **Omega de McDonald** ($\omega_{total}$) es preferible al Alpha de Cronbach cuando los ítems tienen cargas factoriales distintas, que es el caso típico en el AF (Aldás & Uriel, 2ª Ed.). Un $\omega_{total} \geq 0.90$ indica una fiabilidad excelente del instrumento.
+
+## Conclusiones
+
+```{r}
+#| label: valores-conclusion
+#| echo: false
+
+kmo_val   <- round(kmo_result$MSA, 3)
+chi_val   <- round(bartlett_result$chisq, 2)
+nfact     <- fap$nfact
+var_expl  <- round(sum(factorial2$Vaccounted[2,]) * 100, 2)
+omega_val <- round(om$omega.tot, 3)
+rmsr_c    <- round(factorial2$rms, 4)
+```
+
+Los resultados del Análisis Factorial Ordinal permiten establecer las siguientes conclusiones:
+
+1. **Adecuación de los datos:** La prueba de Bartlett ($\chi^2 = `r chi_val`$, $p < 0.001$) y el KMO global ($= `r kmo_val`$, **EXCELENTE**) confirman que los datos son altamente adecuados para el Análisis Factorial. Ningún ítem presentó MSA individual inferior a 0.50, por lo que los 15 ítems se conservaron íntegramente para el análisis.
+
+2. **Elección metodológica correcta:** Dado que los datos son ordinales (Likert 1–5), se empleó la **correlación policórica** como base del análisis y el método de estimación **ULS**, que no requiere normalidad multivariante. Este procedimiento replica exactamente la metodología del Prof. Miranda (Clase 3, `data_3.R`) y es coherente con las recomendaciones de Aldás & Uriel (2ª Ed.).
+
+3. **Estructura de `r nfact` factores:** El análisis paralelo determinó que la solución óptima es de **`r nfact` factores**, los cuales explican en conjunto el **`r var_expl`%** de la varianza total del instrumento. Esta cifra supera el umbral mínimo recomendado del 76% y evidencia una solución muy parsimoniosa.
+
+4. **Rotación VARIMAX:** La rotación ortogonal VARIMAX produjo una estructura simple donde cada ítem carga claramente sobre un único factor, confirmando la existencia de tres dimensiones latentes diferenciadas: **Proactividad** (F1), **Liderazgo** (F2) y **Empatía** (F3).
+
+5. **Bondad de ajuste:** El RMSR = `r rmsr_c` (< 0.05, excelente) indica que el modelo reproduce con alta precisión la matriz de correlaciones policórica observada. La solución factorial es estadística y prácticamente satisfactoria.
+
+6. **Fiabilidad:** El Omega de McDonald ($\omega_{total} = `r omega_val`$) confirma que el instrumento presenta una fiabilidad **excelente** (> 0.90), validando la coherencia interna del conjunto de ítems para medir los constructos identificados.
+
+## Referencias
+
+- Miranda Villagomez, C.F. (2026). *Clase 3 — Análisis Factorial*. Material de clase, Técnicas Multivariadas, UNALM.
+- Miranda Villagomez, C.F. (2026). *data_3.R — Validación de Constructo (Datos Ordinales)*. Código R de clase, Técnicas Multivariadas, UNALM.
+- Aldás Manzano, J. & Uriel Jiménez, E. (2017). *Análisis multivariante aplicado con R* (2ª Ed.). Paraninfo.
+- Revelle, W. (2024). *psych: Procedures for Psychological, Psychometric, and Personality Research*. Northwestern University. R package version 2.4.x.

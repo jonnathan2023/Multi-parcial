@@ -46,11 +46,11 @@ format:
 
 ## Introducción
 
-El **Análisis Factorial (AF)** es un método estadístico multivariante que permite construir un modelo para explicar la correlación existente entre un conjunto de variables en términos de un conjunto menor de variables no observables denominadas **factores latentes** (Miranda, Clase 3). A diferencia del Análisis de Componentes Principales (ACP) —que es una técnica de reducción de datos en el campo de la Estadística Descriptiva— el AF implica la elaboración de un modelo estadístico formal que requiere la formulación de hipótesis y la aplicación de métodos de inferencia.
+El **Análisis Factorial (AF)** es un método estadístico multivariante que permite construir un modelo para explicar la correlación existente entre un conjunto de variables en términos de un conjunto menor de variables no observables denominadas *factores latentes*. A diferencia del Análisis de Componentes Principales (ACP) —que es una técnica de reducción de datos en el campo de la Estadística Descriptiva— el AF implica la elaboración de un modelo estadístico formal que requiere la formulación de hipótesis y la aplicación de métodos de inferencia.
 
-Como señala el Prof. Miranda (Clase 3): *"En el AF, los factores son seleccionados para explicar las interrelaciones entre variables"*, mientras que en el ACP se busca explicar la mayor variabilidad posible con el menor número de componentes. En el AF, **las variables originales juegan el rol de variables dependientes**, cuya interrelación se desea explicar mediante un conjunto de factores comunes y únicos no observables.
+*"En el AF, los factores son seleccionados para explicar las interrelaciones entre variables"*, mientras que en el ACP se busca explicar la mayor variabilidad posible con el menor número de componentes. En el AF, **las variables originales juegan el rol de variables dependientes**, cuya interrelación se desea explicar mediante un conjunto de factores comunes y únicos no observables.
 
-En el presente trabajo se aplica el **Análisis Factorial Policórico**, apropiado para datos de escala ordinal (Likert 1–5), ya que las correlaciones de Pearson suelen subestimar las relaciones reales entre variables ordinales. La correlación policórica asume que cada variable ordinal es la versión categorizada de una variable latente continua con distribución normal bivariada subyacente (Aldás & Uriel, 2ª Ed.).
+En el presente trabajo se aplica el **Análisis Factorial Policórico**, apropiado para datos de escala ordinal (Likert 1–5), ya que las correlaciones de Pearson suelen subestimar las relaciones reales entre variables ordinales. La correlación policórica asume que cada variable ordinal es la versión categorizada de una variable latente continua con distribución normal bivariada subyacente.
 
 ## Datos utilizados
 
@@ -79,7 +79,7 @@ cat("  Numero de items (p):", p, "\n")
 cat("  Escala de respuesta: Likert 1-5\n")
 ```
 
-Los datos corresponden a un instrumento de **`r p` ítems** (P1–P15) medidos en **escala Likert de 5 puntos** (1 = Totalmente en desacuerdo, 5 = Totalmente de acuerdo), con un total de **`r n` observaciones**. Esta muestra es estadísticamente adecuada para el Análisis Factorial, superando ampliamente el mínimo recomendado de 5 observaciones por ítem (Aldás & Uriel, 2ª Ed.).
+Los datos corresponden a un instrumento de **`r p` ítems** (P1–P15) medidos en **escala Likert de 5 puntos** (1 = Totalmente en desacuerdo, 5 = Totalmente de acuerdo), con un total de **`r n` observaciones**. Esta muestra es estadísticamente adecuada para el Análisis Factorial, superando ampliamente el mínimo recomendado de 5 observaciones por ítem.
 
 ```{r}
 #| label: tabla-head
@@ -108,16 +108,15 @@ kable(desc,
                 full_width = FALSE, font_size = 12)
 ```
 
-> **Nota metodológica:** Dado que las variables están medidas en escala ordinal (Likert 1–5), el uso de correlaciones de Pearson no es adecuado para el AF. Se emplea la **correlación policórica**, que estima la correlación entre las variables latentes continuas subyacentes a las categorías ordinales observadas (Miranda, Clase 3; Aldás & Uriel, 2ª Ed.).
+> **Nota metodológica:** Dado que las variables están medidas en escala ordinal (Likert 1–5), el uso de correlaciones de Pearson no es adecuado para el AF. Se emplea la **correlación policórica**, que estima la correlación entre las variables latentes continuas subyacentes a las categorías ordinales observadas .
 
 ## Verificación de supuestos
-
-Antes de proceder con el Análisis Factorial, el Prof. Miranda (Clase 3 — Pruebas Estadísticas Preliminares) establece que deben verificarse dos condiciones esenciales:
+Deben verificarse dos condiciones esenciales:
 
 1. **Prueba de esfericidad de Bartlett:** contrasta si la matriz de correlaciones es significativamente diferente de la matriz identidad ($\mathbf{I}$). Si no se rechaza $H_0$, las variables no están correlacionadas entre sí y no tiene sentido factorizarlas.
-2. **Índice KMO (Kaiser-Meyer-Olkin):** mide la proporción de varianza que es común a las variables. Valores $\geq 0.60$ son aceptables; $\geq 0.80$ se clasifican como excelentes (Miranda, Clase 3).
+2. **Índice KMO (Kaiser-Meyer-Olkin):** mide la proporción de varianza que es común a las variables. Valores $\geq 0.60$ son aceptables; $\geq 0.80$ se clasifican como excelentes.
 
-> **Sobre la normalidad multivariante:** Como señala el Prof. Miranda (Clase 3, Slide 7): *"Desde un punto de vista estadístico, se pueden obviar los supuestos de normalidad, homocedasticidad y linealidad siendo conscientes que su incumplimiento produce una disminución en las correlaciones observadas. En realidad sólo es necesaria la normalidad cuando se aplica una prueba estadística a la significación de los factores."* Por ello, con datos ordinales no se realiza la prueba de normalidad multivariante de Shapiro.
+> **Sobre la normalidad multivariante:**  *"Desde un punto de vista estadístico, se pueden obviar los supuestos de normalidad, homocedasticidad y linealidad siendo conscientes que su incumplimiento produce una disminución en las correlaciones observadas. En realidad sólo es necesaria la normalidad cuando se aplica una prueba estadística a la significación de los factores."* Por ello, con datos ordinales no se realiza la prueba de normalidad multivariante de Shapiro.
 
 ### Matriz de correlaciones policóricas
 
@@ -172,7 +171,7 @@ kable(resultado_bartlett,
   row_spec(4, bold = TRUE, background = "#dff0d8")
 ```
 
-**Interpretación:** El estadístico $\chi^2$ con $p < 0.001$ permite **rechazar la hipótesis nula** de que la matriz de correlaciones policórica es igual a la identidad. Existe correlación significativa entre los ítems del instrumento, lo que confirma que el Análisis Factorial es apropiado para estos datos (Miranda, Clase 3).
+**Interpretación:** El estadístico $\chi^2$ con $p < 0.001$ permite **rechazar la hipótesis nula** de que la matriz de correlaciones policórica es igual a la identidad. Existe correlación significativa entre los ítems del instrumento, lo que confirma que el Análisis Factorial es apropiado para estos datos.
 
 ### Índice Kaiser-Meyer-Olkin (KMO)
 
@@ -215,7 +214,7 @@ if (length(filas_verde) > 0) {
 tbl_kmo
 ```
 
-**Interpretación:** El KMO global es **`r round(kmo_result$MSA, 3)`**, clasificado como **EXCELENTE** (> 0.80 según Kaiser). Esto indica que la proporción de varianza compartida entre los ítems es muy alta y que los datos son altamente adecuados para el Análisis Factorial. Con $n = 250$ observaciones y una escala Likert 1–5 bien calibrada, se obtiene una adecuación muestral notablemente superior al mínimo recomendado de 0.60 (Miranda, Clase 3). Adicionalmente, se puede verificar con la función `check_factorstructure()`:
+**Interpretación:** El KMO global es **`r round(kmo_result$MSA, 3)`**, clasificado como **EXCELENTE** (> 0.80 según Kaiser). Esto indica que la proporción de varianza compartida entre los ítems es muy alta y que los datos son altamente adecuados para el Análisis Factorial. Con $n = 250$ observaciones y una escala Likert 1–5 bien calibrada, se obtiene una adecuación muestral notablemente superior al mínimo recomendado de 0.60. Adicionalmente, se puede verificar con la función `check_factorstructure()`:
 
 ```{r}
 #| label: check-structure
@@ -225,11 +224,11 @@ tbl_kmo
 check_factorstructure(R, n)
 ```
 
-> **Ningún ítem presenta MSA < 0.50**, por lo que no es necesario eliminar variables. Los 15 ítems se conservan íntegros para el análisis, a diferencia del código del Prof. Miranda donde el ítem P13 mostraba MSA = 0.28 y requería consideración de exclusión.
+> **Ningún ítem presenta MSA < 0.50**, por lo que no es necesario eliminar variables. Los 15 ítems se conservan íntegros para el análisis.
 
 ## Determinación del número de factores
 
-Para determinar el número óptimo de factores se utiliza el **Análisis Paralelo** (`fa.parallel`), que es el método recomendado por el Prof. Miranda (Clase 3) por ser más preciso que el criterio de Kaiser (autovalores > 1). Este procedimiento compara los **autovalores observados** de la matriz policórica real con los **autovalores esperados bajo datos aleatorios** con las mismas dimensiones ($n \times p$): se retienen únicamente los factores cuyos autovalores reales superan a los simulados.
+Para determinar el número óptimo de factores se utiliza el **Análisis Paralelo** (`fa.parallel`), por ser más preciso que el criterio de Kaiser (autovalores > 1). Este procedimiento compara los **autovalores observados** de la matriz policórica real con los **autovalores esperados bajo datos aleatorios** con las mismas dimensiones ($n \times p$): se retienen únicamente los factores cuyos autovalores reales superan a los simulados.
 
 ```{r}
 #| label: parallel-analysis
@@ -271,13 +270,13 @@ for (i in 1:8) {
 tbl_eigen
 ```
 
-**Interpretación:** El análisis paralelo sugiere retener **`r fap$nfact` factores** (filas en verde). Los primeros `r fap$nfact` autovalores observados superan sus correspondientes valores simulados bajo aleatoriedad, mientras que a partir del factor `r fap$nfact + 1` los autovalores observados son inferiores a los aleatorios —indicando que no aportan información real más allá del ruido—. Esta solución de **3 factores** es coherente con la estructura teórica diseñada en los datos (Miranda, Clase 3).
+**Interpretación:** El análisis paralelo sugiere retener **`r fap$nfact` factores** (filas en verde). Los primeros `r fap$nfact` autovalores observados superan sus correspondientes valores simulados bajo aleatoriedad, mientras que a partir del factor `r fap$nfact + 1` los autovalores observados son inferiores a los aleatorios —indicando que no aportan información real más allá del ruido—. 
 
 ## Estimación del modelo factorial
 
 ### Métodos de estimación
 
-Tal como indica el Prof. Miranda (Clase 3 — Métodos de Estimación), existen varios métodos de extracción. La elección depende de la naturaleza de los datos:
+ existen varios métodos de extracción. La elección depende de la naturaleza de los datos:
 
 | Método | Código R | Descripcion | Datos recomendados |
 |--------|----------|-------------|--------------------|
@@ -287,7 +286,7 @@ Tal como indica el Prof. Miranda (Clase 3 — Métodos de Estimación), existen 
 | Min. cuadrados ponderados | `wls` | Para dicotomicas | Dicotomicas |
 | Min. cuadrados generalizados | `gls` | Generalizacion de MC | Continuas |
 
-> **Eleccion del metodo `uls`:** Para datos ordinales Likert 1–5, el metodo **ULS** (*Unweighted Least Squares* — Minimos Cuadrados No Ponderados) es el apropiado porque no requiere el supuesto de normalidad multivariante. Se combina con `cor = "poly"` para que `fa()` utilice internamente la matriz de correlaciones policoricas como entrada en lugar de la de Pearson (Miranda, Clase 3; Aldas & Uriel, 2a Ed.).
+> **Eleccion del metodo `uls`:** Para datos ordinales Likert 1–5, el metodo **ULS** (*Unweighted Least Squares* — Minimos Cuadrados No Ponderados) es el apropiado porque no requiere el supuesto de normalidad multivariante. Se combina con `cor = "poly"` para que `fa()` utilice internamente la matriz de correlaciones policoricas como entrada en lugar de la de Pearson .
 
 ### Solución sin rotación
 
@@ -327,11 +326,11 @@ kable(prop_var1,
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
 ```
 
-**Interpretación:** Sin rotación, el primer factor concentra la mayor parte de la varianza, lo que dificulta la identificación de dimensiones latentes diferenciadas. Como señala el Prof. Miranda (Clase 3 — Rotación de Factores), *"la rotación tiene como finalidad determinar fácilmente los factores comunes y la interpretación de sus interrelaciones con cada una de las variables originales"*. Es necesario rotar para obtener una **estructura simple**.
+**Interpretación:** Sin rotación, el primer factor concentra la mayor parte de la varianza, lo que dificulta la identificación de dimensiones latentes diferenciadas. *"la rotación tiene como finalidad determinar fácilmente los factores comunes y la interpretación de sus interrelaciones con cada una de las variables originales"*. Es necesario rotar para obtener una **estructura simple**.
 
 ### Solución con rotación VARIMAX
 
-La **rotación ortogonal VARIMAX** maximiza la varianza de las cargas al cuadrado dentro de cada factor, procurando que cada ítem presente **una carga alta en un único factor y cargas bajas en los demás**. Los factores rotados mantienen la ortogonalidad entre sí (Miranda, Clase 3 — Métodos de Rotación de Factores).
+La **rotación ortogonal VARIMAX** maximiza la varianza de las cargas al cuadrado dentro de cada factor, procurando que cada ítem presente **una carga alta en un único factor y cargas bajas en los demás**. Los factores rotados mantienen la ortogonalidad entre sí.
 
 ```{r}
 #| label: factorial-varimax
@@ -386,7 +385,7 @@ tbl_vc2 <- row_spec(tbl_vc2, row_acum, bold = TRUE, background = "#dff0d8")
 tbl_vc2
 ```
 
-**Interpretación:** Tras la rotación VARIMAX, la varianza se redistribuye de forma más equitativa entre los tres factores. La varianza acumulada total es **`r round(sum(factorial2$Vaccounted[2,])*100, 2)`%**, superando holgadamente el umbral recomendado del 76% (Miranda, Clase 3).
+**Interpretación:** Tras la rotación VARIMAX, la varianza se redistribuye de forma más equitativa entre los tres factores. La varianza acumulada total es **`r round(sum(factorial2$Vaccounted[2,])*100, 2)`%**, superando holgadamente el umbral recomendado del 76%.
 
 ### Diagrama factorial
 
@@ -403,11 +402,11 @@ fa.diagram(factorial2, e.size = 0.05, rsize = 3.5,
            main = "Estructura Factorial — 3 Factores (VARIMAX, ULS, Policorica)")
 ```
 
-> El diagrama muestra los tres factores latentes y las cargas sobre cada ítem observado (flechas). Cada ítem aparece conectado únicamente al factor con mayor carga, evidenciando la **estructura simple** buscada con la rotación VARIMAX (Miranda, Clase 3 — Interpretación de los factores).
+> El diagrama muestra los tres factores latentes y las cargas sobre cada ítem observado (flechas). Cada ítem aparece conectado únicamente al factor con mayor carga, evidenciando la **estructura simple** buscada con la rotación VARIMAX .
 
 ## Identificación de las cargas factoriales máximas
 
-Siguiendo exactamente el procedimiento del Prof. Miranda (`data_3.R`), se asigna cada ítem al factor en el que presenta la **mayor carga factorial en valor absoluto**:
+ se asigna cada ítem al factor en el que presenta la **mayor carga factorial en valor absoluto**:
 
 ```{r}
 #| label: cargas-maximas
@@ -428,7 +427,7 @@ dat1  <- data.frame(Item = rownames(dat), dat)
 fact  <- gather(dat1, Factor, cargas, -Item) |> drop_na()
 Cargas <- split(fact, fact$Factor)
 
-# Mostrar por factor (igual que el codigo del Prof. Miranda)
+# Mostrar por factor 
 print(Cargas)
 ```
 
@@ -459,7 +458,7 @@ tbl_cm
 
 ## Interpretación de los factores
 
-Con base en las cargas factoriales rotadas y la asignación al factor de mayor carga, la estructura factorial se define como sigue. Como indica el Prof. Miranda (Clase 3): *"se puede identificar rasgos o características comunes en un grupo de variables asociadas a un factor y dar una denominación a estas interrelaciones encontradas entre las variables del grupo"*.
+Con base en las cargas factoriales rotadas y la asignación al factor de mayor carga, la estructura factorial se define como sigue: *"se puede identificar rasgos o características comunes en un grupo de variables asociadas a un factor y dar una denominación a estas interrelaciones encontradas entre las variables del grupo"*.
 
 ```{r}
 #| label: tabla-interpretacion
@@ -571,7 +570,7 @@ for (i in seq_len(nrow(ajuste_df))) {
 tbl_aj
 ```
 
-> **Interpretación conjunta:** El RMSR = `r rmsr_val` (< 0.05) es el indicador de ajuste más relevante con datos ordinales y confirma que el modelo reproduce con alta precisión la matriz de correlaciones policórica observada. La varianza acumulada de **`r var_pct`%** supera el umbral del 76%. Con $n = 250$, los índices basados en chi-cuadrado (RMSEA, BIC) son más estables e interpretables que con muestras pequeñas (Aldás & Uriel, 2ª Ed.).
+> **Interpretación conjunta:** El RMSR = `r rmsr_val` (< 0.05) es el indicador de ajuste más relevante con datos ordinales y confirma que el modelo reproduce con alta precisión la matriz de correlaciones policórica observada. La varianza acumulada de **`r var_pct`%** supera el umbral del 76%. Con $n = 250$, los índices basados en chi-cuadrado (RMSEA, BIC) son más estables e interpretables que con muestras pequeñas.
 
 ## Fiabilidad del instrumento
 
@@ -603,7 +602,7 @@ kable(omega_df,
   row_spec(4, bold = TRUE, background = "#dff0d8")
 ```
 
-> El **Omega de McDonald** ($\omega_{total}$) es preferible al Alpha de Cronbach cuando los ítems tienen cargas factoriales distintas, que es el caso típico en el AF (Aldás & Uriel, 2ª Ed.). Un $\omega_{total} \geq 0.90$ indica una fiabilidad excelente del instrumento.
+> El **Omega de McDonald** ($\omega_{total}$) es preferible al Alpha de Cronbach cuando los ítems tienen cargas factoriales distintas, que es el caso típico en el AF . Un $\omega_{total} \geq 0.90$ indica una fiabilidad excelente del instrumento.
 
 ## Conclusiones
 
@@ -623,7 +622,7 @@ Los resultados del Análisis Factorial Ordinal permiten establecer las siguiente
 
 1. **Adecuación de los datos:** La prueba de Bartlett ($\chi^2 = `r chi_val`$, $p < 0.001$) y el KMO global ($= `r kmo_val`$, **EXCELENTE**) confirman que los datos son altamente adecuados para el Análisis Factorial. Ningún ítem presentó MSA individual inferior a 0.50, por lo que los 15 ítems se conservaron íntegramente para el análisis.
 
-2. **Elección metodológica correcta:** Dado que los datos son ordinales (Likert 1–5), se empleó la **correlación policórica** como base del análisis y el método de estimación **ULS**, que no requiere normalidad multivariante. Este procedimiento replica exactamente la metodología del Prof. Miranda (Clase 3, `data_3.R`) y es coherente con las recomendaciones de Aldás & Uriel (2ª Ed.).
+2. **Elección metodológica correcta:** Dado que los datos son ordinales (Likert 1–5), se empleó la **correlación policórica** como base del análisis y el método de estimación **ULS**, que no requiere normalidad multivariante. Este procedimiento es coherente.
 
 3. **Estructura de `r nfact` factores:** El análisis paralelo determinó que la solución óptima es de **`r nfact` factores**, los cuales explican en conjunto el **`r var_expl`%** de la varianza total del instrumento. Esta cifra supera el umbral mínimo recomendado del 76% y evidencia una solución muy parsimoniosa.
 

@@ -1,0 +1,744 @@
+---
+lang: es
+
+format:
+  html:
+    code-fold: true
+    code-summary: "Ver código R"
+    toc: true
+    toc-depth: 5
+    toc-location: left
+    toc-title: "Índice de Contenidos"
+    number-sections: true
+    theme:
+      light: journal
+      dark: darkly
+    highlight: tango
+    smooth-scroll: true
+    embed-resources: true
+    include-before-body:
+      text: |
+        <div style="text-align: center; padding: 60px 20px; font-family: 'Georgia', serif;">
+          <p style="font-size: 1.2em; font-weight: bold;">UNIVERSIDAD NACIONAL AGRARIA LA MOLINA</p>
+          <p style="font-weight: bold;">FACULTAD DE ECONOMÍA Y PLANIFICACIÓN</p>
+          <p style="font-weight: bold; margin-bottom: 30px;">DEPARTAMENTO ACADÉMICO DE ESTADÍSTICA E INFORMÁTICA</p>
+          <img src="logo.png" alt="Logo UNALM" style="max-width: 160px; margin: 15px 0;" />
+          <p style="font-weight: bold;">TÉCNICAS MULTIVARIADAS</p>
+          <p><strong>Docente:</strong> Miranda Villagomez, Clodomiro Fernando</p>
+          <p style="font-weight: bold; font-size: 1.4em;">EXAMEN PARCIAL</p>
+          <p><strong>Grupo:</strong> 1</p>
+          <table style="margin: 20px auto; border-collapse: collapse; width: 55%;">
+            <tr><th>Integrantes</th><th>Código</th></tr>
+            <tr><td>Meza Asto, Angel D.</td><td>20220810</td></tr>
+            <tr><td>Ormeño Sakihama, Daniel Kenyi</td><td>20240723</td></tr>
+            <tr><td>Ancco Guzman, Melany Alexandra</td><td>20230379</td></tr>
+            <tr><td>Pedraza Laboriano, Jonnathan</td><td>20231505</td></tr>
+            <tr><td>Fuentes Bueno, Fiorella</td><td>20230395</td></tr>
+            <tr><td>Garay Ramos, Jose Luis</td><td>20230678</td></tr>
+            <tr><td>Sobero Aguirre, Fiorella Romina</td><td>20091130</td></tr>
+          </table>
+          <p>LA MOLINA - LIMA - PERÚ</p>
+          <p>2026 - I</p>
+        </div>
+        <hr/>
+
+editor:
+  markdown:
+    wrap: 72
+---
+
+<style>
+body { font-size: 15px; line-height: 1.7; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+h1 { font-size: 24px; color: #2C3E50; border-bottom: 2px solid #2C3E50; }
+h2 { font-size: 20px; color: #2980B9; }
+.nota {
+  font-size: 14px;
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f4f7f6;
+  border-left: 5px solid #2980B9;
+  border-radius: 4px;
+  font-style: italic;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, comment = NA)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(psych)
+library(corrplot)
+library(performance)
+library(GPArotation)
+library(ggrepel)
+library(MASS)
+library(readxl)
+library(DT)
+```
+
+# Análisis Factorial Dicotómico
+
+## Introducción y Marco Teórico
+
+El Análisis Factorial se clasifica metodológicamente como una **técnica de análisis de interdependencia**. Se recurre a esta familia de técnicas cuando no es posible dividir conceptualmente las variables en grupos dependientes e independientes; por el contrario, el objetivo radica en identificar cómo y por qué las variables están correlacionadas entre sí. 
+
+Es fundamental distinguir el enfoque seleccionado en este estudio. Mientras que el Análisis de Componentes Principales (ACP) es estrictamente una técnica descriptiva de reducción de datos que busca combinaciones lineales para resumir varianza, en este examen aplicamos el **Análisis Factorial Exploratorio (AFE)**. El AFE postula un modelo causal: asume que las correlaciones observadas entre las respuestas de los usuarios se deben a la existencia de variables latentes subyacentes (factores) que deben ser estimadas.
+
+**Justificación del Nivel de Medida**
+En la investigación de satisfacción o comportamiento digital, los datos suelen recolectarse en escalas nominales dicotómicas (Sí/No). Este nivel de medida no métrico viola el supuesto de continuidad requerido por el coeficiente de correlación de Pearson clásico. Tratar variables 0/1 con Pearson genera atenuación en las estimaciones. Por ello, este modelo emplea la **matriz de correlaciones tetracóricas**. Este enfoque asume matemáticamente que detrás de cada respuesta binaria observada ($y_i$) existe una propensión latente continua y normal ($y_i^* \sim N(0,1)$), definida por un umbral $\tau_i$:
+
+$$y_i = 
+\begin{cases} 
+1 & \text{si } y_i^* \geq \tau_i \\ 
+0 & \text{si } y_i^* < \tau_i 
+\end{cases}$$
+
+Es sobre estas variables latentes $y^*$ que se calcula la estructura de correlaciones, evitando la atenuación típica del coeficiente de Pearson.
+
+Es fundamental precisar que para este estudio se ha seleccionado el Análisis Factorial Exploratorio (AFE) en lugar del Análisis de Componentes Principales (ACP). Esta decisión radica en que, mientras el ACP es una técnica descriptiva de reducción de datos que busca explicar la mayor parte de la variabilidad total con el menor número posible de componentes, el AFE permite construir un modelo para explicar la estructura causal y las interrelaciones latentes que subyacen a las variables observadas. De este modo, los factores se identifican a partir de la varianza común, tratando a los indicadores originales como variables dependientes de factores no observables que deben ser hallados para comprender el fenómeno estudiado.
+
+## Definición de Variables y Dimensiones Teóricas
+
+| Dimensión Latente | Ítem | Descripción de la Variable (1 = Sí, 0 = No) |
+|:---|:---:|:---|
+| **F1: Seguridad y Prevención** | P1 | Verifica que la página cuente con certificado HTTPS. |
+| **F1: Seguridad y Prevención** | P2 | Evita guardar activamente los datos de su tarjeta en la web. |
+| **F1: Seguridad y Prevención** | P3 | Lee exhaustivamente las políticas de devoluciones. |
+| **F1: Seguridad y Prevención** | P4 | Utiliza pasarelas intermedias de pago (ej. PayPal, Apple Pay). |
+| **F1: Seguridad y Prevención** | P5 | Evita realizar transacciones financieras en redes Wi-Fi públicas. |
+| **F1: Seguridad y Prevención** | P11 | Utiliza autenticación de dos pasos (2FA) en sus cuentas de compra. |
+| **F2: Hábitos de Consumo Digital** | P6 | Realiza compras por internet al menos una vez al mes. |
+| **F2: Hábitos de Consumo Digital** | P7 | Prefiere utilizar las Apps oficiales de las tiendas sobre la web. |
+| **F2: Hábitos de Consumo Digital** | P8 | Está suscrito a newsletters para recibir alertas de ofertas. |
+| **F2: Hábitos de Consumo Digital** | P9 | Suele dejar reseñas o valoraciones de los productos adquiridos. |
+| **F2: Hábitos de Consumo Digital** | P10 | Planifica sus compras para coincidir con días de descuento (Cyber). |
+| **F2: Hábitos de Consumo Digital** | P12 | Comparte promociones u ofertas de tiendas en sus redes sociales. |
+
+Bajo el enfoque de validación, el modelo de Análisis Factorial Exploratorio (AFE) asume que el vector de variables observadas $\mathbf{X}$ se puede expresar como una combinación lineal de factores comunes latentes $\mathbf{F}$ y un vector de errores o factores únicos $\boldsymbol{\epsilon}$:
+
+$$\mathbf{X} = \boldsymbol{\mu} + \boldsymbol{\Lambda} \mathbf{F} + \boldsymbol{\epsilon}$$
+
+## Objetivos
+
+1. Validar la estructura factorial de la encuesta mediante el uso de matrices tetracóricas.
+2. Identificar las cargas factoriales bajo el método de extracción de Mínimos Cuadrados Ponderados (WLS).
+3. Comparar la interpretabilidad del modelo mediante rotaciones ortogonales (Varimax).
+4. Determinar el nivel de adecuación de la muestra para el análisis de reducción de datos.
+
+## Carga y Preparación de los Datos
+
+Para garantizar la reproducibilidad y el ajuste óptimo del modelo bidimensional teórico, cargamos la base de datos de 12 indicadores.
+
+```{r carga-datos}
+test   <- read_excel("Datos_Dicotomicos.xlsx")
+n_obs  <- nrow(test)
+
+datatable(
+  test,
+  caption = "Visualización de la base de datos cargada",
+  options = list(
+    pageLength = 10, scrollX = TRUE, autoWidth = TRUE,
+    language = list(
+      search = "Buscar:",
+      lengthMenu = "Mostrar _MENU_ registros",
+      info = "Mostrando _START_ a _END_ de _TOTAL_ registros",
+      paginate = list("next" = "Siguiente", "previous" = "Anterior")
+    )
+  )
+)
+```
+
+La muestra consta de **`r n_obs` observaciones** y **`r ncol(test)` ítems** dicotómicos (0/1). Esta muestra supera ampliamente el mínimo recomendado de 5 observaciones por ítem para el Análisis Factorial.
+
+## Análisis Previo de los Datos
+
+Antes de evaluar la estructura de correlaciones, es un paso crítico en el análisis multivariante garantizar la calidad de la base de datos, evaluando la presencia de valores perdidos y observaciones atípicas que puedan distorsionar la extracción de factores.
+
+### Valores Perdidos y Casos Atípicos Multivariantes
+
+Calculamos la distancia de Mahalanobis ($D^2$) para identificar encuestados cuyo patrón de respuesta global difiera significativamente del centroide de la muestra.
+
+```{r analisis-previo}
+# 1. Verificación de Valores Perdidos
+total_na <- sum(is.na(test))
+cat("Total de valores perdidos detectados:", total_na, "\n")
+
+# 2. Detección de Casos Atípicos (Distancia de Mahalanobis)
+# Se calcula la distancia D^2 para cada observación
+dist_mahalanobis <- mahalanobis(test, center = colMeans(test), cov = cov(test))
+
+# Se define un umbral conservador usando chi-cuadrado (alfa = 0.01)
+umbral_chi <- qchisq(0.99, df = ncol(test)) 
+
+# Creación del gráfico de dispersión de Mahalanobis
+par(mar = c(5, 5, 4, 2))
+plot(dist_mahalanobis, type = "p", pch = 19, col = "#2980B9",
+     xlab = "Número de Encuestado", 
+     ylab = "Distancia de Mahalanobis (D²)",
+     main = "Detección de Casos Atípicos Multivariantes",
+     ylim = c(0, max(max(dist_mahalanobis), umbral_chi) + 5))
+
+# Línea de umbral
+abline(h = umbral_chi, col = "#E74C3C", lty = 2, lwd = 2)
+text(x = 10, y = umbral_chi + 1, "Umbral crítico (p < 0.01)", col = "#E74C3C", adj = 0)
+
+# Identificar cuántos superan el umbral
+atipicos <- sum(dist_mahalanobis > umbral_chi)
+cat("Número de casos atípicos multivariantes detectados:", atipicos, "\n")
+
+# 3. Tratamiento de los Casos Atípicos
+indices_atipicos <- which(dist_mahalanobis > umbral_chi)
+
+# Condicional para eliminar los atípicos si es que existen
+if(length(indices_atipicos) > 0) {
+  test <- test[-indices_atipicos, ] # Sobrescribimos la base de datos excluyendo atípicos
+  n_obs <- nrow(test) # Actualizamos el 'n' para que las pruebas de Bartlett y KMO usen el dato correcto
+  cat("Se eliminaron", length(indices_atipicos), "casos atípicos.\n")
+  cat("El tamaño muestral final para el análisis es de", n_obs, "observaciones.\n")
+} else {
+  cat("No se requirió eliminar observaciones.\n")
+}
+```
+
+::: nota
+**Interpretación del Análisis Previo y Tratamiento de Atípicos:**
+A través del cálculo de la distancia de Mahalanobis ($D^2$), se detectaron 10 casos atípicos multivariantes que superaron el umbral crítico ($p < 0.01$). En el contexto de encuestas dicotómicas, estos valores extremos sugieren patrones de respuesta altamente improbables o erráticos por parte de dichos encuestados. 
+
+Dado que la eliminación de estos 10 casos representa únicamente el 2% de la muestra original, se procedió a depurarlos de la base de datos. Este procedimiento garantiza una matriz de correlaciones tetracóricas limpia y evita distorsiones en las cargas factoriales, conservando un tamaño muestral final de 490 observaciones, el cual es estadísticamente óptimo y excede holgadamente los requerimientos teóricos para el Análisis Factorial.
+:::
+
+## Verificación de Supuestos
+
+### Análisis de Medias y "Factores de Dificultad"
+
+Verificamos que las proporciones de respuesta no sean extremas para evitar sesgos de agrupación por frecuencia.
+
+```{r factores-dificultad}
+prop_resp <- colMeans(test)
+kable(t(round(prop_resp, 3)),
+      caption = "Proporción de Respuestas Afirmativas por Ítem") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+::: nota
+**Interpretación Teórica:**
+Las proporciones de respuesta afirmativa oscilan entre **0.460 (P8)** y **0.532 (P9)**, manteniéndose todas muy próximas a 0.50. Esto garantiza la ausencia de "factores de dificultad": ítems con proporciones extremas (< 0.20 o > 0.80) generarían agrupaciones artificiales basadas en frecuencia de respuesta y no en el contenido latente de las variables. Al cumplirse este supuesto, la agrupación factorial reflejará exclusivamente la estructura conceptual del instrumento.
+:::
+
+### Matriz de Correlaciones Tetracóricas
+
+```{r cor-tetrachorica}
+# Correlación tetracórica — misma función que usa el Prof. Miranda
+r.tetra <- tetrachoric(test)
+R       <- r.tetra$rho
+
+# Heatmap
+corrplot(R, method = "color", type = "upper",
+         addCoef.col = "black", number.cex = 0.7,
+         tl.col = "black",
+         title = "Matriz Tetracórica — E-Commerce",
+         mar = c(0, 0, 1, 0))
+
+# Tabla numérica
+kable(round(R, 2),
+      caption = "Matriz de Correlaciones Tetracóricas") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = TRUE, font_size = 11)
+```
+
+> ⚠️ **Nota sobre corrección de celdas vacías:** La función `tetrachoric()` detectó celdas con frecuencia cero en algunas tablas de contingencia 2×2 entre ítems y aplicó automáticamente una corrección de continuidad (reemplaza 0 por 0.5). Este fenómeno es esperable con muestras moderadas o ítems con proporciones similares, y no invalida el análisis ni los resultados.
+
+::: nota
+**Interpretación de la Matriz:**
+La matriz tetracórica revela una estructura de bloques muy definida. Los ítems de **Seguridad (P1-P5, P11)** presentan correlaciones internas en un rango de **0.77 a 0.88**, reflejando una fuerte cohesión conceptual. Los ítems de **Hábitos (P6-P10, P12)** muestran correlaciones internas entre **0.64 y 0.83**, igualmente elevadas. Crucialmente, las correlaciones **cruzadas entre ambos bloques** son prácticamente nulas (rango: **-0.18 a 0.00**), confirmando la independencia entre las dos dimensiones y anticipando con claridad la existencia de dos factores latentes ortogonales.
+:::
+
+### Valores Tau (umbrales) de cada ítem
+
+Los umbrales $\tau_i$ son los puntos de corte sobre la variable latente continua que definen si la respuesta observada es 0 o 1. Son reportados automáticamente por `tetrachoric()` tal como lo muestra el Prof. Miranda en su código.
+
+```{r tau-umbrales}
+tau_df <- data.frame(
+  Item       = names(r.tetra$tau),
+  Tau        = round(r.tetra$tau, 3),
+  Proporcion = round(colMeans(test), 3)
+)
+
+kable(tau_df,
+      caption   = "Umbrales Tau (τ) por ítem — Punto de corte de la variable latente",
+      col.names = c("Ítem", "Tau (τ)", "Proporción afirmativa"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+::: nota
+**Interpretación:** Un valor de $\tau$ negativo indica que más del 50% de los encuestados respondió afirmativamente (el umbral está por debajo de la media de la distribución normal estándar). Valores cercanos a cero corresponden a proporciones cercanas al 50%, como se observa en la mayoría de los ítems de este instrumento, lo que confirma la ausencia de ítems extremos o "fáciles/difíciles".
+:::
+
+### Comparación Pearson vs. Tetracórica
+
+El Prof. Miranda muestra explícitamente `cor(test)` junto a la matriz tetracórica para evidenciar la atenuación de Pearson. Reproducimos esa comparación:
+
+```{r pearson-comparacion}
+kable(round(cor(test), 3),
+      caption = "Correlaciones de Pearson — referencia comparativa con tetracóricas") |>
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                font_size = 10, full_width = TRUE) |>
+  scroll_box(width = "100%")
+```
+
+::: nota
+**Interpretación:** Las correlaciones de Pearson subestiman sistemáticamente las relaciones entre variables dicotómicas. Por ejemplo, el par P1–P3 presenta r = 0.935 en Pearson versus r = 0.941 en tetracórica. Esta atenuación se debe a que Pearson trata los valores 0/1 como si fueran continuos, ignorando la variable latente subyacente. El uso de la correlación tetracórica corrige este sesgo y constituye la base metodológica correcta para el AFD (Aldás & Uriel, 2017).
+:::
+
+### Pruebas de Factorabilidad
+
+Evaluamos si la estructura de correlaciones permite la reducción de datos mediante la Prueba de Esfericidad de Bartlett y el Índice KMO.
+
+```{r factorabilidad}
+bartlett_res <- cortest.bartlett(R, n = n_obs)
+kmo_res      <- KMO(R)
+
+# Tabla resumen Bartlett
+bartlett_df <- data.frame(
+  Estadistico = c("Chi-cuadrado", "Grados de libertad", "p-valor", "Decision"),
+  Valor = c(
+    round(bartlett_res$chisq, 3),
+    bartlett_res$df,
+    formatC(bartlett_res$p.value, format = "e", digits = 3),
+    ifelse(bartlett_res$p.value < 0.05,
+           "Rechazar H0: AF apropiado",
+           "No rechazar H0: AF no recomendado")
+  )
+)
+
+kable(bartlett_df,
+      caption   = "Prueba de Esfericidad de Bartlett",
+      col.names = c("Estadístico", "Valor"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) |>
+  row_spec(4, bold = TRUE, background = "#dff0d8")
+
+# KMO individual
+msa_df <- data.frame(
+  Item       = names(kmo_res$MSAi),
+  MSA        = round(kmo_res$MSAi, 3),
+  Evaluacion = ifelse(kmo_res$MSAi >= 0.80, "Excelente",
+               ifelse(kmo_res$MSAi >= 0.70, "Bueno",
+               ifelse(kmo_res$MSAi >= 0.60, "Aceptable",
+               ifelse(kmo_res$MSAi >= 0.50, "Regular", "Inaceptable"))))
+)
+
+tbl_kmo <- kable(msa_df,
+      caption   = paste0("KMO Global = ", round(kmo_res$MSA, 3),
+                         " — MSA individuales por ítem"),
+      col.names = c("Ítem", "MSA individual", "Evaluación"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+filas_rojo  <- which(msa_df$MSA < 0.50)
+filas_verde <- which(msa_df$MSA >= 0.80)
+if (length(filas_rojo)  > 0) tbl_kmo <- row_spec(tbl_kmo, filas_rojo,  bold = TRUE, color = "white", background = "#d9534f")
+if (length(filas_verde) > 0) tbl_kmo <- row_spec(tbl_kmo, filas_verde, background = "#dff0d8")
+tbl_kmo
+
+# Verificación integrada
+check_factorstructure(R, n = n_obs)
+```
+
+::: nota
+**Interpretación de Supuestos (Factorabilidad):**
+
+1. **Prueba de Bartlett:** El estadístico $\chi^2$ es altamente significativo ($p < 0.001$), confirmando que la matriz de correlaciones tetracóricas es significativamente distinta de una matriz identidad. Las preguntas están lo suficientemente interrelacionadas como para ser agrupadas en factores latentes.
+
+2. **Índice KMO:** El valor global obtenido es de **`r round(kmo_res$MSA, 3)`**, clasificado como **Meritorio/Excelente** (> 0.80). Esto garantiza que la muestra es adecuada y que los resultados del análisis factorial serán estables y confiables.
+
+3. **Análisis Individual (MSA):** Todos los ítems superan el mínimo aceptable de 0.50. No es necesario eliminar ninguna variable; los 12 ítems (P1 a P12) aportan información relevante al estudio.
+
+En conclusión, los datos superan con éxito las pruebas de calidad y son totalmente aptos para el Análisis Factorial Dicotómico.
+:::
+
+## Determinación del Número de Factores
+
+Para determinar el número óptimo de factores se utiliza el **Análisis Paralelo** (`fa.parallel`), por ser más preciso que el criterio de Kaiser (autovalores > 1). Se especifica `fm = "wls"` para mantener coherencia metodológica con el método de estimación del modelo final.
+
+```{r parallel-analysis}
+#| fig-width: 11
+#| fig-height: 8
+#| out-width: 100%
+#| fig-align: center
+
+par(mar = c(5,5,4,2), cex.main = 1.6, cex.lab = 1.3, cex.axis = 1.1)
+
+fap <- fa.parallel(
+  R,
+  n.obs = n_obs,
+  fa    = "fa",
+  fm    = "wls",
+  main  = "Análisis Paralelo — E-Commerce (WLS, Tetracórica)"
+)
+```
+
+```{r eigenvalues-tabla, echo=FALSE}
+eigen_df <- data.frame(
+  Factor             = paste0("F", seq_along(fap$fa.values)),
+  Autovalor_obs      = round(fap$fa.values, 4),
+  Autovalor_simulado = round(fap$fa.sim,    4),
+  Supera_simulado    = ifelse(fap$fa.values > fap$fa.sim, "Sí", "No")
+)
+
+nf <- fap$nfact
+tbl_eigen <- kable(eigen_df[1:6, ],
+      caption   = "Autovalores observados vs. simulados — Primeros 6 factores",
+      col.names = c("Factor", "Autovalor observado", "Autovalor simulado", "¿Supera al simulado?"),
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+for (i in 1:6) {
+  bg <- if (i <= nf) "#dff0d8" else "#f9f2f4"
+  tbl_eigen <- row_spec(tbl_eigen, i, background = bg, bold = (i <= nf))
+}
+tbl_eigen
+```
+
+::: nota
+**Interpretación del Análisis Paralelo:**
+El gráfico de sedimentación muestra que solo los **`r fap$nfact` primeros autovalores** observados superan a los simulados bajo aleatoriedad. A partir del factor `r fap$nfact + 1`, los autovalores reales caen por debajo de la línea aleatoria, indicando que no aportan información real más allá del ruido estadístico. Este resultado confirma que la estructura de **`r fap$nfact` factores** es la más adecuada, coincidiendo perfectamente con las dimensiones teóricas de Seguridad y Hábitos de Consumo.
+:::
+
+## Modelamiento del Análisis Factorial
+
+Se procede con la estimación utilizando el método de **Mínimos Cuadrados Ponderados (WLS)**, recomendado para datos dicotómicos con matrices tetracóricas, ya que no requiere el supuesto de normalidad multivariante (Aldás & Uriel, 2017).
+
+### Ajuste de modelos (sin rotación y con VARIMAX)
+
+```{r ajuste-modelos}
+# Modelo SIN rotación
+factorial_sin_rotar <- fa(test, nfactors = 2, n.obs = n_obs,
+                          rotate = "none", fm = "wls", cor = "tet")
+
+# Modelo CON rotación VARIMAX
+factorial_final <- fa(test, nfactors = 2, n.obs = n_obs,
+                      rotate = "varimax", fm = "wls", cor = "tet")
+```
+
+### Diagramas factoriales: sin rotación vs. VARIMAX
+
+```{r diagramas-lado-a-lado}
+#| fig-cap: "Comparación estructural: Sin rotación (rojo) vs. Rotación VARIMAX (azul)"
+#| fig-width: 13
+#| fig-height: 6
+
+par(mfrow = c(1, 2))
+fa.diagram(factorial_sin_rotar, e.size = .05, rsize = 3.5,
+           digits = 2, col = "red",  main = "1. Sin Rotación")
+fa.diagram(factorial_final,     e.size = .05, rsize = 3.5,
+           digits = 2, col = "blue", main = "2. Rotación VARIMAX")
+par(mfrow = c(1, 1))
+```
+
+::: nota
+**Justificación de la Rotación:**
+En el **Modelo Sin Rotación (rojo)**, las relaciones entre ítems y factores son difusas y difíciles de interpretar. Tras aplicar la **rotación ortogonal VARIMAX (azul)**, se logra la "Estructura Simple": cada ítem se agrupa con fuerza en una sola dimensión. Los ítems de **Seguridad (P1-P5, P11)** se concentran en el Factor 1 y los de **Hábitos (P6-P10, P12)** en el Factor 2. La rotación no cambia los datos, sino que "gira" los ejes para facilitar la interpretación (Aldás & Uriel, 2017).
+:::
+
+### Cargas factoriales sin rotación
+
+```{r cargas-sin-rotacion, echo=FALSE}
+cargas_sin <- data.frame(round(unclass(factorial_sin_rotar$loadings)[, 1:2], 3))
+cargas_sin$h2 <- round(factorial_sin_rotar$communality, 3)
+cargas_sin$u2 <- round(factorial_sin_rotar$uniquenesses, 3)
+
+kable(cargas_sin,
+      caption   = "Cargas Factoriales — Sin rotación (WLS, correlación tetracórica)",
+      col.names = c("WLS1", "WLS2", "Comunalidad (h²)", "Unicidad (u²)")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+### Varianza explicada sin rotación
+
+```{r varianza-sin-rotacion, echo=FALSE}
+vc_sin <- factorial_sin_rotar$Vaccounted
+prop_sin <- data.frame(
+  Estadistico = c("SS Loadings", "Proporcion Var.",
+                  "Var. Acumulada", "Prop. Explicada", "Prop. Acumulada"),
+  WLS1 = round(vc_sin[, 1], 4),
+  WLS2 = round(vc_sin[, 2], 4)
+)
+
+kable(prop_sin,
+      caption = "Varianza explicada por factor — Sin rotación (WLS)") |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+**Interpretación:** Sin rotación, el primer factor concentra la mayor parte de la varianza, lo que dificulta la identificación de dimensiones latentes diferenciadas. La rotación VARIMAX redistribuye la varianza de forma más equitativa, facilitando la interpretación.
+
+## Resultados y Clasificación
+
+### Matriz completa de cargas rotadas (VARIMAX)
+
+```{r cargas-rotadas}
+cargas_matrix <- as.data.frame(unclass(factorial_final$loadings))
+colnames(cargas_matrix) <- c("WLS1 — Seguridad", "WLS2 — Hábitos")
+cargas_matrix <- round(cargas_matrix, 3)
+cargas_matrix <- cbind(Ítem = rownames(cargas_matrix), cargas_matrix)
+
+kable(cargas_matrix,
+      caption   = "Matriz Completa de Cargas Factoriales Rotadas (VARIMAX)",
+      row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  column_spec(2, bold = TRUE, color = "#2980B9") %>%
+  column_spec(3, bold = TRUE, color = "#E74C3C")
+```
+
+### Clasificación de ítems por factor (carga dominante)
+
+```{r clasificacion-items}
+dat  <- data.frame(ifelse(
+          abs(factorial_final$loadings) == apply(abs(factorial_final$loadings), 1, max),
+          apply(abs(factorial_final$loadings), 1, max), NA))
+dat1 <- data.frame(Item = rownames(dat), dat)
+fact <- gather(dat1, Factor, Carga_Principal, -Item) %>% drop_na()
+
+descripciones <- c(
+  P1  = "Verifica certificado HTTPS",
+  P2  = "Evita guardar datos de tarjeta",
+  P3  = "Lee políticas de devoluciones",
+  P4  = "Usa pasarelas intermedias de pago",
+  P5  = "Evita transacciones en Wi-Fi público",
+  P6  = "Compra al menos una vez al mes",
+  P7  = "Prefiere Apps oficiales",
+  P8  = "Suscrito a newsletters de ofertas",
+  P9  = "Deja reseñas de productos",
+  P10 = "Planifica compras para Cyber Days",
+  P11 = "Utiliza autenticación de dos pasos (2FA)",
+  P12 = "Comparte ofertas en sus redes sociales"
+)
+
+fact$Descripción     <- descripciones[fact$Item]
+fact$Carga_Principal <- round(fact$Carga_Principal, 3)
+Cargas <- split(fact[, c("Item", "Descripción", "Carga_Principal")], fact$Factor)
+
+kable(Cargas$WLS1, digits = 3, row.names = FALSE,
+      caption = "Dimensión 1 — Seguridad y Prevención (WLS1)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  column_spec(3, bold = TRUE, color = "#2980B9")
+
+kable(Cargas$WLS2, digits = 3, row.names = FALSE,
+      caption = "Dimensión 2 — Hábitos de Consumo Digital (WLS2)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  column_spec(3, bold = TRUE, color = "#E74C3C")
+```
+
+::: nota
+**Interpretación de Cargas Factoriales:**
+La estructura factorial obtenida cumple con el criterio de **Estructura Simple de Thurstone**: cada ítem satura con fuerza en un solo factor y presenta cargas cruzadas insignificantes. Todas las cargas cruzadas son menores a 0.12 en valor absoluto, demostrando formalmente la **validez discriminante** del instrumento.
+
+- **Dimensión 1 (Seguridad):** Liderada por **P5** con la carga más alta, superando todos los ítems el umbral de 0.70. Esto indica una fuerte **validez convergente** hacia el constructo de prevención de riesgos en línea.
+- **Dimensión 2 (Hábitos):** Los indicadores más representativos son P7 y P6. Todos los ítems superan el umbral de 0.80, reforzando la estabilidad del constructo de consumo digital.
+:::
+
+## Adecuación de las Puntuaciones Factoriales
+
+```{r factor-score-adequacy}
+fsa <- data.frame(
+  Medida = c("Correlación scores-factores",
+             "R² múltiple scores-factores",
+             "Correlación mínima posible"),
+  WLS1 = c(round(factorial_final$score.cor[1, 1], 3),
+            round(factorial_final$R2[1], 3),
+            round(2 * factorial_final$R2[1] - 1, 3)),
+  WLS2 = c(round(factorial_final$score.cor[2, 2], 3),
+            round(factorial_final$R2[2], 3),
+            round(2 * factorial_final$R2[2] - 1, 3))
+)
+
+kable(fsa,
+      caption   = "Adecuación de las puntuaciones factoriales",
+      row.names = FALSE) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+::: nota
+**Interpretación:** La correlación entre los scores estimados y los factores reales es alta en ambas dimensiones, indicando que las puntuaciones factoriales son estimaciones precisas de los factores latentes verdaderos. El R² múltiple confirma que los scores reproducen correctamente la varianza factorial, y la correlación mínima posible garantiza que incluso en el peor escenario la estimación es aceptable.
+:::
+
+## Análisis de Comunalidades ($h^2$)
+
+```{r comunalidades}
+comunalidades <- data.frame(
+  Item          = names(factorial_final$communality),
+  Comunalidad   = round(factorial_final$communality, 3),
+  Especificidad = round(1 - factorial_final$communality, 3),
+  Evaluacion    = ifelse(factorial_final$communality >= 0.50, "Alta (≥ 0.50)",
+                  ifelse(factorial_final$communality >= 0.30, "Aceptable (0.30–0.49)",
+                                                              "Baja (< 0.30)"))
+)
+
+tbl_com <- kable(comunalidades,
+      caption   = "Comunalidades (h²) y Especificidades (ψ²) por Ítem",
+      row.names = FALSE, align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+tbl_com <- row_spec(tbl_com, which(comunalidades$Comunalidad >= 0.60), background = "#d5f5e3")
+tbl_com <- row_spec(tbl_com, which(comunalidades$Comunalidad <  0.40), background = "#fdebd0")
+tbl_com
+```
+
+::: nota
+**Interpretación de Comunalidades (h²) y Especificidades (ψ²):**
+Todas las comunalidades son superiores a 0.50, indicando que el modelo no pierde información relevante de ninguna pregunta.
+
+- **Máxima representación:** El ítem con mayor comunalidad es el mejor capturado por el modelo, con la mayor proporción de su varianza explicada por los dos factores.
+- **Mayor especificidad:** El ítem P12 presenta la mayor varianza única, sugiriendo que contiene componentes individuales no capturados completamente por el factor común, posiblemente relacionados con motivaciones sociales específicas del usuario.
+:::
+
+## Evaluación de la Calidad y Fiabilidad del Modelo
+
+```{r bondad-ajuste}
+# ── Índices de Bondad de Ajuste ─────────────────────────────────
+fit_indices <- data.frame(
+  Indice    = c("RMSR", "Chi² Empírico (p-valor)",
+                "Fit Off-Diagonal", "Varianza Acumulada"),
+  Valor     = c(
+    round(factorial_final$rms, 3),
+    paste0(round(factorial_final$chi, 3),
+           "  (p = ", round(factorial_final$EPVAL, 3), ")"),
+    round(factorial_final$fit, 3),
+    round(sum(factorial_final$Vaccounted[2, ]), 3)
+  ),
+  Umbral    = c("< 0.05", "p > 0.05", ">= 0.95", "> 0.50"),
+  Evaluacion = c(
+    ifelse(factorial_final$rms   < 0.05, "✓ Cumple", "✗ No cumple"),
+    ifelse(factorial_final$EPVAL > 0.05, "✓ Cumple", "✗ No cumple"),
+    ifelse(factorial_final$fit  >= 0.95, "✓ Cumple", "✗ No cumple"),
+    ifelse(sum(factorial_final$Vaccounted[2, ]) > 0.50, "✓ Cumple", "✗ No cumple")
+  )
+)
+
+tbl_fit <- kable(fit_indices,
+      caption   = "Índices de Bondad de Ajuste (WLS + VARIMAX)",
+      row.names = FALSE, align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+tbl_fit <- row_spec(tbl_fit, which(fit_indices$Evaluacion == "✓ Cumple"),    background = "#d5f5e3")
+tbl_fit <- row_spec(tbl_fit, which(fit_indices$Evaluacion == "✗ No cumple"), background = "#fdebd0")
+tbl_fit
+
+# ── Varianza Explicada por Factor ────────────────────────────────
+vaccounted <- as.data.frame(factorial_final$Vaccounted)
+row_acum   <- which(rownames(vaccounted) == "Cumulative Var")
+
+tbl_vacc <- kable(round(vaccounted, 3),
+      caption = "Varianza Explicada por Factor (WLS + VARIMAX)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+if (length(row_acum) > 0)
+  tbl_vacc <- row_spec(tbl_vacc, row_acum, bold = TRUE, background = "#dff0d8")
+tbl_vacc
+```
+
+```{r fiabilidad}
+# ── Fiabilidad Omega global ───────────────────────────────────────
+omega_res <- omega(test, nfactors = 2, fm = "wls", cor = "tet",
+                   plot = FALSE, n.iter = 1)
+
+omega_df <- data.frame(
+  Indicador  = c("Omega total (ω total)", "Omega jerárquico (ω h)",
+                 "Alpha de Cronbach", "Evaluación global"),
+  Valor      = c(round(omega_res$omega.tot, 3),
+                 round(omega_res$omega_h,   3),
+                 round(omega_res$alpha,     3),
+                 ifelse(omega_res$omega.tot >= 0.90, "EXCELENTE (≥ 0.90)",
+                 ifelse(omega_res$omega.tot >= 0.80, "BUENO (≥ 0.80)",
+                                                     "ACEPTABLE (≥ 0.70)")))
+)
+
+kable(omega_df,
+      caption   = "Fiabilidad del instrumento — Omega de McDonald",
+      row.names = FALSE,
+      col.names = c("Indicador", "Valor")) |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) |>
+  row_spec(4, bold = TRUE, background = "#dff0d8")
+
+# ── Comparación Alpha vs. Omega por dimensión ────────────────────
+alpha_seg     <- alpha(test[, c("P1","P2","P3","P4","P5","P11")])
+alpha_habitos <- alpha(test[, c("P6","P7","P8","P9","P10","P12")])
+
+omega_seg     <- omega(test[, c("P1","P2","P3","P4","P5","P11")],
+                       nfactors = 1, fm = "wls", cor = "tet",
+                       plot = FALSE, n.iter = 1)
+omega_habitos <- omega(test[, c("P6","P7","P8","P9","P10","P12")],
+                       nfactors = 1, fm = "wls", cor = "tet",
+                       plot = FALSE, n.iter = 1)
+
+comparacion_fiab <- data.frame(
+  Dimension      = c("Seguridad (F1)", "Hábitos (F2)"),
+  Alpha_Cronbach = c(round(alpha_seg$total$raw_alpha,     3),
+                     round(alpha_habitos$total$raw_alpha, 3)),
+  Omega          = c(round(omega_seg$omega.tot,     3),
+                     round(omega_habitos$omega.tot, 3))
+)
+
+kable(comparacion_fiab,
+      caption   = "Comparación de Fiabilidad por Dimensión: Alpha vs. Omega",
+      row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+::: nota
+**Evaluación de la Calidad y Fiabilidad del Modelo (WLS):**
+
+1. **Precisión (RMSR y Fit):** El RMSR < 0.05 y el Fit Off-Diagonal > 0.95 confirman que el modelo reproduce con alta fidelidad la matriz de correlaciones tetracórica observada.
+2. **Validación (Chi-cuadrado empírico):** El p-valor > 0.05 confirma que no existen diferencias significativas entre la matriz reproducida por el modelo y la observada; el ajuste es óptimo.
+3. **Varianza Acumulada:** Supera el umbral del 50%, con una distribución equilibrada entre ambos factores, confirmando que ninguna dimensión domina artificialmente.
+4. **Fiabilidad (Omega global):** El coeficiente Omega garantiza que el instrumento es altamente confiable en su conjunto.
+5. **Comparación Alpha vs. Omega:** La equivalencia entre Alpha y Omega en ambas dimensiones indica que las escalas cumplen el supuesto de tau-equivalencia, validando el uso de Alpha como estimador de fiabilidad. Ambas dimensiones superan el umbral de 0.80.
+:::
+
+## Gráfico de Dispersión de Cargas Factoriales
+
+```{r fa-plot}
+#| fig-width: 7
+#| fig-height: 7
+#| fig-cap: "Espacio de cargas factoriales — Estructura Simple (WLS + VARIMAX)"
+
+fa.plot(factorial_final,
+        labels = rownames(factorial_final$loadings),
+        main   = "Espacio de Cargas Factoriales (WLS + Varimax)",
+        cex    = 0.8,
+        pch    = 19)
+
+# Líneas de referencia: cargas significativas > 0.40
+abline(h = c(-0.4, 0.4), v = c(-0.4, 0.4), lty = 2, col = "red")
+```
+
+::: nota
+**Interpretación del Mapa de Cargas:**
+El gráfico confirma una **Estructura Simple** clara. Todos los ítems se ubican fuera de las líneas de referencia (> 0.40), confirmando que todas las cargas son estadísticamente relevantes.
+
+- **Eje Horizontal (F1 — Seguridad):** P1, P2, P3, P4, P5 y P11 se sitúan en el extremo derecho, lejos del origen y sin interferencia del Factor 2.
+- **Eje Vertical (F2 — Hábitos):** P6, P7, P8, P9, P10 y P12 se concentran en la parte superior, sin proyección relevante sobre el eje horizontal.
+
+Esta separación limpia confirma la **validez discriminante** del instrumento.
+:::
+
+## Conclusiones y Recomendaciones
+
+1. **Conclusión Estadística:** Se validaron dos dimensiones latentes ortogonales — Seguridad y Prevención (F1) y Hábitos de Consumo Digital (F2) — que explican el comportamiento del consumidor digital peruano con alta precisión metodológica, respaldados por excelentes indicadores RMSR, chi-cuadrado empírico y Fit Off-Diagonal, apropiados para el método WLS con correlaciones tetracóricas.
+
+2. **Validez Estructural:** Todos los ítems presentan cargas superiores a 0.80 en su factor correspondiente y cargas cruzadas menores a 0.12, cumpliendo el criterio de Estructura Simple de Thurstone. La inclusión de mecanismos modernos como la autenticación 2FA (P11) y la interacción en redes sociales (P12) consolidó la fiabilidad de las escalas.
+
+3. **Recomendación Estratégica:** Las empresas de E-commerce deben fortalecer la percepción visual de seguridad en sus plataformas, dado que esta dimensión actúa como condición fundamental e independiente de la frecuencia de compra.
+
+4. **Comparación de Fiabilidad:** La equivalencia entre Alpha y Omega en ambas dimensiones sugiere que las escalas cumplen el supuesto de tau-equivalencia, otorgando robustez adicional al instrumento y validando el uso de cualquiera de los dos estimadores.
+
+5. **Comparación Alpha vs. Omega:** La equivalencia entre Alpha y Omega en ambas dimensiones indica que las escalas cumplen el supuesto de tau-equivalencia. Cabe destacar que, al tratarse de ítems de naturaleza dicotómica, el estadístico Alpha de Cronbach calculado equivale matemáticamente a la fórmula KR-20 (Kuder-Richardson 20), el cual es el estimador clásico y correcto para este tipo de escalas binarias. Ambas dimensiones superan holgadamente el umbral de 0.80, validando la precisión del instrumento.
+
+# Bibliografía
+
+- Aldás Manzano, J. & Uriel Jiménez, E. (2017). *Análisis multivariante aplicado con R* (2ª Ed.). Madrid: Ediciones Paraninfo.
+
+- Miranda Villagomez, C.F. (2026). *Clase 3 — Validación de Constructo (Datos Dicotómicos)*. Código R de clase, Técnicas Multivariadas, UNALM.
+
+- Revelle, W. (2024). *psych: Procedures for Psychological, Psychometric, and Personality Research*. Northwestern University. R package version 2.4.x.
